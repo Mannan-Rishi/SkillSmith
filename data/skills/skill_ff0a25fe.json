@@ -1,0 +1,1165 @@
+{
+  "id": "skill_ff0a25fe",
+  "name": "Meeting & Task Action-Item Extractor",
+  "category": "Productivity & Project Management",
+  "current_version": "1.0.0",
+  "versions": {
+    "1.0.0": {
+      "version": "1.0.0",
+      "parent_version": null,
+      "manifest": {
+        "name": "Meeting & Task Action-Item Extractor",
+        "slug": "meeting-task-action-item-extractor",
+        "description": "Transforms unstructured meeting notes or discussion transcripts into a structured format containing decisions, action items, deadlines, owners, and unresolved questions.",
+        "category": "Productivity & Project Management",
+        "version": "1.0.0",
+        "parent_version": null,
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "notes": "The raw text containing meeting notes or discussion content (string)",
+          "meeting_date": "The date the meeting occurred (optional string)",
+          "participants": "A list of individuals present at the meeting (optional array of strings)"
+        },
+        "outputs": {
+          "overall_status": "The processing result status: 'success', 'partial', or 'insufficient_input' (string)",
+          "summary": "A concise summary of the meeting (string)",
+          "decisions": "A list of confirmed decisions explicitly stated in the notes (array of strings)",
+          "action_items": "A list of objects containing 'task' (string), 'owner' (string or null), 'deadline' (string or null), 'priority' (string or null), and 'source_text' (string)",
+          "unassigned_tasks": "A list of tasks identified without a clear owner (array of strings)",
+          "open_questions": "A list of unresolved questions or missing details (array of strings)",
+          "risks": "A list of explicitly stated or strongly implied risks (array of strings)",
+          "limitations": "A list of relevant uncertainties regarding the extraction (array of strings)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    # Initialize default output structure\n    result = {\n        \"overall_status\": \"insufficient_input\",\n        \"summary\": \"\",\n        \"decisions\": [],\n        \"action_items\": [],\n        \"unassigned_tasks\": [],\n        \"open_questions\": [],\n        \"risks\": [],\n        \"limitations\": []\n    }\n\n    notes = inputs.get(\"notes\")\n    if not notes or not isinstance(notes, str) or not notes.strip():\n        return result\n\n    # Basic cleaning\n    lines = [line.strip() for line in notes.split('\\n') if line.strip()]\n    \n    # Keywords for extraction\n    decision_keywords = [r\"decided\", r\"agreed\", r\"conclusion\", r\"finalized\", r\"resolved\"]\n    action_keywords = [r\"action item\", r\"todo\", r\"task\", r\"will\", r\"must\", r\"needs to\"]\n    question_keywords = [r\"\\?\", r\"unresolved\", r\"tbd\", r\"unknown\", r\"question\"]\n    risk_keywords = [r\"risk\", r\"concern\", r\"issue\", r\"threat\", r\"blocker\"]\n\n    found_anything = False\n\n    for line in lines:\n        lower_line = line.lower()\n        \n        # Extract Decisions\n        if any(re.search(kw, lower_line) for kw in decision_keywords):\n            result[\"decisions\"].append(line)\n            found_anything = True\n\n        # Extract Action Items\n        if any(re.search(kw, lower_line) for kw in action_keywords):\n            # Simple heuristic for owner: Look for \"[Name] will\" or \"Action: [Name]\"\n            owner = None\n            # Pattern: \"Name will...\" or \"Action: Name...\"\n            owner_match = re.search(r\"([A-Z][a-z]+(?:\\s[A-Z][a-z]+)?)\\s+(?:will|to|must)\", line)\n            if not owner_match:\n                owner_match = re.search(r\"(?:Action|Task):\\s*([A-Z][a-z]+(?:\\s[A-Z][a-z]+)?)\", line)\n            \n            if owner_match:\n                owner = owner_match.group(1)\n\n            # Simple heuristic for deadline: Look for dates or \"by [Date]\"\n            deadline = None\n            deadline_match = re.search(r\"by\\s+([A-Za-z0-9\\s\\/,-]+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|[0-9]{1,2}/[0-9]{1,2}))\", line, re.IGNORECASE)\n            if deadline_match:\n                deadline = deadline_match.group(1).strip()\n\n            # Simple heuristic for priority\n            priority = None\n            if \"high priority\" in lower_line or \"urgent\" in lower_line:\n                priority = \"High\"\n            elif \"low priority\" in lower_line:\n                priority = \"Low\"\n\n            item = {\n                \"task\": line,\n                \"owner\": owner,\n                \"deadline\": deadline,\n                \"priority\": priority,\n                \"source_text\": line\n            }\n            \n            if owner:\n                result[\"action_items\"].append(item)\n            else:\n                result[\"unassigned_tasks\"].append(line)\n            \n            found_anything = True\n\n        # Extract Questions\n        if any(re.search(kw, lower_line) for kw in question_keywords):\n            result[\"open_questions\"].append(line)\n            found_anything = True\n\n        # Extract Risks\n        if any(re.search(kw, lower_line) for kw in risk_keywords):\n            result[\"risks\"].append(line)\n            found_anything = True\n\n    # Generate a simple summary from the first few lines or a general statement\n    if lines:\n        result[\"summary\"] = f\"Meeting notes processed. Found {len(result['decisions'])} decisions and {len(result['action_items']) + len(result['unassigned_tasks'])} tasks.\"\n\n    # Final Status\n    if found_anything:\n        result[\"overall_status\"] = \"success\"\n    else:\n        result[\"overall_status\"] = \"partial\"\n        result[\"limitations\"].append(\"No explicit action items or decisions were identified using standard patterns.\")\n\n    return result"
+      },
+      "skill_md": "---\nname: Meeting & Task Action-Item Extractor\nslug: meeting-task-action-item-extractor\ncategory: Productivity & Project Management\nversion: 1.0.0\n---\n\n# Meeting & Task Action-Item Extractor\n\n## Overview\nTransforms unstructured meeting notes or discussion transcripts into a structured format containing decisions, action items, deadlines, owners, and unresolved questions. This skill uses pattern recognition to isolate commitments and conclusions from general discussion.\n\n## Usage\n\n### Inputs\n- `notes` (string, required): The raw text containing meeting notes or discussion content.\n- `meeting_date` (string, optional): The date the meeting occurred.\n- `participants` (array of strings, optional): A list of individuals present at the meeting.\n\n### Outputs\n- `overall_status` (string): 'success', 'partial', or 'insufficient_input'.\n- `summary` (string): A concise summary of the meeting.\n- `decisions` (array of strings): Confirmed decisions explicitly stated.\n- `action_items` (array of objects): List of tasks with `task`, `owner`, `deadline`, `priority`, and `source_text`.\n- `unassigned_tasks` (array of strings): Tasks identified without a clear owner.\n- `open_questions` (array of strings): Unresolved questions or missing details.\n- `risks` (array of strings): Explicitly stated or strongly implied risks.\n- `limitations` (array of strings): Uncertainties regarding the extraction.\n\n## Steps\n1. **Input Validation**: Check if `notes` is provided and non-empty.\n2. **Pattern Analysis**: Scan text for keywords indicating decisions (e.g., \"decided\", \"agreed\", \"conclusion\"), actions (e.g., \"will do\", \"action item\", \"task\"), and questions (e.g., \"?\", \"unresolved\", \"TBD\").\n3. **Entity Extraction**: Attempt to map owners and deadlines based on proximity to action keywords.\n4. **Categorization**: Separate confirmed decisions from proposals and route ownerless tasks to the unassigned list.\n5. **Verification**: Ensure no hallucinated data is added and source text is preserved.\n\n## Error Handling\n- Returns `insufficient_input` if `notes` is missing or empty.\n- Returns `partial` if notes are provided but no actionable items or decisions are found.\n- Returns `success` if structured data is successfully extracted.",
+      "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    notes = inputs.get('notes', '')\n    meeting_date = inputs.get('meeting_date', '')\n    participants = inputs.get('participants', [])\n\n    if not notes or not isinstance(notes, str) or not notes.strip():\n        return {\n            \"overall_status\": \"insufficient_input\",\n            \"action_items\": [],\n            \"decisions\": [],\n            \"questions\": [],\n            \"risks\": [],\n            \"unassigned_tasks\": [],\n            \"limitations\": [\"Cannot analyze empty meeting notes.\"]\n        }\n\n    sentences = [s.strip() for s in re.split(r'[.\\n]+', notes) if s.strip()]\n\n    decisions = []\n    risks = []\n    questions = []\n    action_items = []\n    unassigned_tasks = []\n\n    # Priority mapping\n    def detect_priority(text):\n        if re.search(r'\\b(high priority|urgent|critical|asap)\\b', text, re.IGNORECASE):\n            return \"High\"\n        elif re.search(r'\\b(low priority|minor)\\b', text, re.IGNORECASE):\n            return \"Low\"\n        return \"Medium\"\n\n    # Deadline mapping\n    def detect_deadline(text):\n        dm = re.search(r'\\bby\\s+([A-Za-z0-9/\\-]+)', text, re.IGNORECASE)\n        if dm:\n            return dm.group(1).strip()\n        return \"TBD\"\n\n    for s in sentences:\n        s_lower = s.lower()\n        \n        # 1. Decisions\n        if any(w in s_lower for w in [\"we decided\", \"decision:\", \"agreed that\", \"decided to\"]):\n            decisions.append(s)\n\n        # 2. Risks\n        elif any(w in s_lower for w in [\"risk\", \"concern\", \"blocker\", \"delay\"]):\n            risks.append(s)\n\n        # 3. Questions\n        elif \"?\" in s or any(w in s_lower for w in [\"is the\", \"do we\", \"how will\"]):\n            questions.append(s)\n\n        # 4. Action Items (Assigned vs Unassigned)\n        elif any(w in s_lower for w in [\"will\", \"need to\", \"action:\", \"task:\"]):\n            # Check for owner\n            owner = None\n            assigned_match = re.search(r'\\b([A-Z][a-z]+)\\s+will\\b', s)\n            if assigned_match:\n                owner = assigned_match.group(1)\n            elif participants:\n                for p in participants:\n                    if p.lower() in s_lower:\n                        owner = p\n                        break\n            \n            # Check for explicitly unassigned indicators or general need\n            if owner is None or re.search(r'\\b(we need to|need to|someone should)\\b', s_lower):\n                clean_task = re.sub(r'^(we need to|need to|task:|action:)\\s*', '', s, flags=re.IGNORECASE).strip()\n                unassigned_tasks.append(clean_task)\n            \n            if owner:\n                clean_desc = re.sub(r'^(task:|action:)\\s*', '', s, flags=re.IGNORECASE).strip()\n                action_items.append({\n                    \"task\": clean_desc,\n                    \"owner\": owner,\n                    \"deadline\": detect_deadline(s),\n                    \"priority\": detect_priority(notes if \"high priority\" in notes.lower() else s),\n                    \"status\": \"pending\"\n                })\n\n    limitations = []\n    if not action_items and not unassigned_tasks:\n        limitations.append(\"No explicit action items found in discussion.\")\n        status = \"partial\"\n    else:\n        status = \"success\"\n\n    return {\n        \"overall_status\": status,\n        \"action_items\": action_items,\n        \"decisions\": decisions,\n        \"questions\": questions,\n        \"risks\": risks,\n        \"unassigned_tasks\": unassigned_tasks,\n        \"limitations\": limitations\n    }\n",
+      "created_at": 1792765790.9109113,
+      "latest_run": {
+        "run_id": "run_bdfd7055",
+        "skill_id": "skill_ff0a25fe",
+        "version": "1.0.0",
+        "timestamp": 1792767673.927607,
+        "status": "passed",
+        "passed_count": 4,
+        "failed_count": 0,
+        "total_tests": 4,
+        "pass_rate": 100.0,
+        "test_results": [
+          {
+            "test_id": "3b33ef04",
+            "test_name": "Standard Meeting Notes Extraction",
+            "passed": true,
+            "actual_output": {
+              "overall_status": "success",
+              "action_items": [
+                {
+                  "task": "Alice will update the server config by Friday",
+                  "owner": "Alice",
+                  "deadline": "Friday",
+                  "priority": "Medium",
+                  "status": "pending"
+                }
+              ],
+              "decisions": [
+                "We decided to migrate to AWS"
+              ],
+              "questions": [],
+              "risks": [
+                "Is the API ready? There is a risk of delay due to hardware shipping"
+              ],
+              "unassigned_tasks": [
+                "review the budget"
+              ],
+              "limitations": []
+            },
+            "error_message": null,
+            "execution_time_ms": 10.592699982225895,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "success",
+                "target_field": "overall_status",
+                "passed": true,
+                "message": "Expected success, got success",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "migrate to AWS",
+                "target_field": "decisions",
+                "passed": true,
+                "message": "Found substring 'migrate to AWS' inside list item 'We decided to migrate to AWS'",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "Alice",
+                "target_field": "action_items[0].owner",
+                "passed": true,
+                "message": "Expected Alice, got Alice",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "review the budget",
+                "target_field": "unassigned_tasks",
+                "passed": true,
+                "message": "Found exact item 'review the budget' in list",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "risk of delay",
+                "target_field": "risks",
+                "passed": true,
+                "message": "Found substring 'risk of delay' inside list item 'Is the API ready? There is a risk of delay due to hardware shipping'",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "341fbc18",
+            "test_name": "Empty Input Handling",
+            "passed": true,
+            "actual_output": {
+              "overall_status": "insufficient_input",
+              "action_items": [],
+              "decisions": [],
+              "questions": [],
+              "risks": [],
+              "unassigned_tasks": [],
+              "limitations": [
+                "Cannot analyze empty meeting notes."
+              ]
+            },
+            "error_message": null,
+            "execution_time_ms": 7.028899621218443,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "insufficient_input",
+                "target_field": "overall_status",
+                "passed": true,
+                "message": "Expected insufficient_input, got insufficient_input",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": [],
+                "target_field": "action_items",
+                "passed": true,
+                "message": "Expected [], got []",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": [],
+                "target_field": "decisions",
+                "passed": true,
+                "message": "Expected [], got []",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "2a64abe8",
+            "test_name": "No Actionable Items",
+            "passed": true,
+            "actual_output": {
+              "overall_status": "partial",
+              "action_items": [],
+              "decisions": [],
+              "questions": [],
+              "risks": [],
+              "unassigned_tasks": [],
+              "limitations": [
+                "No explicit action items found in discussion."
+              ]
+            },
+            "error_message": null,
+            "execution_time_ms": 5.612900014966726,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "partial",
+                "target_field": "overall_status",
+                "passed": true,
+                "message": "Expected partial, got partial",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "No explicit action items",
+                "target_field": "limitations",
+                "passed": true,
+                "message": "Found substring 'No explicit action items' inside list item 'No explicit action items found in discussion.'",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": [],
+                "target_field": "action_items",
+                "passed": true,
+                "message": "Expected [], got []",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "9663de9b",
+            "test_name": "Complex Task Attributes",
+            "passed": true,
+            "actual_output": {
+              "overall_status": "success",
+              "action_items": [
+                {
+                  "task": "Bob will fix the login bug by 12/01",
+                  "owner": "Bob",
+                  "deadline": "12/01",
+                  "priority": "High",
+                  "status": "pending"
+                }
+              ],
+              "decisions": [],
+              "questions": [],
+              "risks": [],
+              "unassigned_tasks": [
+                "We also need to check the logs"
+              ],
+              "limitations": []
+            },
+            "error_message": null,
+            "execution_time_ms": 4.3437001295387745,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "Bob",
+                "target_field": "action_items[0].owner",
+                "passed": true,
+                "message": "Expected Bob, got Bob",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "12/01",
+                "target_field": "action_items[0].deadline",
+                "passed": true,
+                "message": "Expected 12/01, got 12/01",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "High",
+                "target_field": "action_items[0].priority",
+                "passed": true,
+                "message": "Expected High, got High",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "check the logs",
+                "target_field": "unassigned_tasks",
+                "passed": true,
+                "message": "Found substring 'check the logs' inside list item 'We also need to check the logs'",
+                "is_evaluator_error": false
+              }
+            ]
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_ff0a25fe' (version 1.0.0) with 4 tests.",
+          "[+] Test 'Standard Meeting Notes Extraction' PASSED in 10.6ms",
+          "[+] Test 'Empty Input Handling' PASSED in 7.0ms",
+          "[+] Test 'No Actionable Items' PASSED in 5.6ms",
+          "[+] Test 'Complex Task Attributes' PASSED in 4.3ms"
+        ]
+      }
+    },
+    "1.0.1": {
+      "version": "1.0.1",
+      "parent_version": "1.0.0",
+      "manifest": {
+        "name": "Meeting & Task Action-Item Extractor",
+        "slug": "meeting-task-action-item-extractor",
+        "description": "Transforms unstructured meeting notes or discussion transcripts into a structured format containing decisions, action items, deadlines, owners, and unresolved questions.",
+        "category": "Productivity & Project Management",
+        "version": "1.0.1",
+        "parent_version": "1.0.0",
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "notes": "The raw text containing meeting notes or discussion content (string)",
+          "meeting_date": "The date the meeting occurred (optional string)",
+          "participants": "A list of individuals present at the meeting (optional array of strings)"
+        },
+        "outputs": {
+          "overall_status": "The processing result status: 'success', 'partial', or 'insufficient_input' (string)",
+          "summary": "A concise summary of the meeting (string)",
+          "decisions": "A list of confirmed decisions explicitly stated in the notes (array of strings)",
+          "action_items": "A list of objects containing 'task' (string), 'owner' (string or null), 'deadline' (string or null), 'priority' (string or null), and 'source_text' (string)",
+          "unassigned_tasks": "A list of tasks identified without a clear owner (array of strings)",
+          "open_questions": "A list of unresolved questions or missing details (array of strings)",
+          "risks": "A list of explicitly stated or strongly implied risks (array of strings)",
+          "limitations": "A list of relevant uncertainties regarding the extraction (array of strings)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    # Initialize default output structure\n    result = {\n        \"overall_status\": \"insufficient_input\",\n        \"summary\": \"\",\n        \"decisions\": [],\n        \"action_items\": [],\n        \"unassigned_tasks\": [],\n        \"open_questions\": [],\n        \"risks\": [],\n        \"limitations\": []\n    }\n\n    notes = inputs.get(\"notes\")\n    if not notes or not isinstance(notes, str) or not notes.strip():\n        return result\n\n    # Split by newlines OR sentence-ending punctuation to handle multi-sentence lines\n    # This regex splits by . ! ? or \\n while keeping the punctuation if needed, \n    # but for extraction, we just need the segments.\n    raw_segments = re.split(r'(\\n|\\. |\\? |\\! )', notes)\n    \n    # Reconstruct sentences from the split\n    lines = []\n    current = \"\"\n    for part in raw_segments:\n        if part in ['\\n', '. ', '? ', '! ']:\n            if current.strip():\n                lines.append(current.strip() + (part.strip() if part.strip() else \"\"))\n            current = \"\"\n        else:\n            current += part\n    if current.strip():\n        lines.append(current.strip())\n\n    # Keywords for extraction\n    decision_keywords = [r\"decided\", r\"agreed\", r\"conclusion\", r\"finalized\", r\"resolved\"]\n    action_keywords = [r\"action item\", r\"todo\", r\"task\", r\"will\", r\"must\", r\"needs to\", r\"need to\"]\n    question_keywords = [r\"\\?\", r\"unresolved\", r\"tbd\", r\"unknown\", r\"question\"]\n    risk_keywords = [r\"risk\", r\"concern\", r\"issue\", r\"threat\", r\"blocker\"]\n\n    found_anything = False\n\n    for line in lines:\n        lower_line = line.lower()\n        \n        # Extract Decisions\n        if any(re.search(kw, lower_line) for kw in decision_keywords):\n            result[\"decisions\"].append(line)\n            found_anything = True\n\n        # Extract Action Items\n        if any(re.search(kw, lower_line) for kw in action_keywords):\n            # Owner: Look for \"Name will\", \"Name to\", \"Action: Name\"\n            owner = None\n            owner_match = re.search(r\"([A-Z][a-z]+(?:\\s[A-Z][a-z]+)?)\\s+(?:will|to|must)\", line)\n            if not owner_match:\n                owner_match = re.search(r\"(?:Action|Task):\\s*([A-Z][a-z]+(?:\\s[A-Z][a-z]+)?)\", line)\n            \n            if owner_match:\n                owner = owner_match.group(1)\n\n            # Deadline: Look for dates like 12/01, 2023-10-27, or \"by Friday\"\n            deadline = None\n            deadline_match = re.search(r\"by\\s+([0-9]{1,2}/[0-9]{1,2}|[0-9]{4}-[0-9]{2}-[0-9]{2}|[A-Za-z]+(?:\\s[0-9]{1,2})?)\", line, re.IGNORECASE)\n            if deadline_match:\n                deadline = deadline_match.group(1).strip()\n\n            # Priority\n            priority = None\n            if \"high priority\" in lower_line or \"urgent\" in lower_line:\n                priority = \"High\"\n            elif \"low priority\" in lower_line:\n                priority = \"Low\"\n\n            item = {\n                \"task\": line,\n                \"owner\": owner,\n                \"deadline\": deadline,\n                \"priority\": priority,\n                \"source_text\": line\n            }\n            \n            if owner:\n                result[\"action_items\"].append(item)\n            else:\n                result[\"unassigned_tasks\"].append(line)\n            \n            found_anything = True\n\n        # Extract Questions\n        if any(re.search(kw, lower_line) for kw in question_keywords):\n            result[\"open_questions\"].append(line)\n            found_anything = True\n\n        # Extract Risks\n        if any(re.search(kw, lower_line) for kw in risk_keywords):\n            result[\"risks\"].append(line)\n            found_anything = True\n\n    # Summary\n    if lines:\n        result[\"summary\"] = f\"Meeting notes processed. Found {len(result['decisions'])} decisions and {len(result['action_items']) + len(result['unassigned_tasks'])} tasks.\"\n\n    # Final Status\n    if found_anything:\n        result[\"overall_status\"] = \"success\"\n    else:\n        result[\"overall_status\"] = \"partial\"\n        result[\"limitations\"].append(\"No explicit action items or decisions were identified using standard patterns.\")\n\n    return result"
+      },
+      "skill_md": "# Meeting Notes Extractor\n\nThis skill parses unstructured meeting notes and extracts key actionable items, decisions, risks, and open questions.\n\n## Input\n- `notes` (string): The raw text of the meeting notes.\n- `meeting_date` (string, optional): Date of the meeting.\n- `participants` (list, optional): List of people attending.\n\n## Output\n- `overall_status` (string): 'success', 'partial', or 'insufficient_input'.\n- `summary` (string): A brief overview of findings.\n- `decisions` (list): List of decided items.\n- `action_items` (list): List of objects containing `task`, `owner`, `deadline`, `priority`, and `source_text`.\n- `unassigned_tasks` (list): List of tasks without a clear owner.\n- `open_questions` (list): List of unresolved questions.\n- `risks` (list): List of identified risks or blockers.\n- `limitations` (list): Any issues encountered during extraction.",
+      "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    # Initialize default output structure\n    result = {\n        \"overall_status\": \"insufficient_input\",\n        \"summary\": \"\",\n        \"decisions\": [],\n        \"action_items\": [],\n        \"unassigned_tasks\": [],\n        \"open_questions\": [],\n        \"risks\": [],\n        \"limitations\": []\n    }\n\n    notes = inputs.get(\"notes\")\n    if not notes or not isinstance(notes, str) or not notes.strip():\n        return result\n\n    # Split by newlines OR sentence-ending punctuation to handle multi-sentence lines\n    # This regex splits by . ! ? or \\n while keeping the punctuation if needed, \n    # but for extraction, we just need the segments.\n    raw_segments = re.split(r'(\\n|\\. |\\? |\\! )', notes)\n    \n    # Reconstruct sentences from the split\n    lines = []\n    current = \"\"\n    for part in raw_segments:\n        if part in ['\\n', '. ', '? ', '! ']:\n            if current.strip():\n                lines.append(current.strip() + (part.strip() if part.strip() else \"\"))\n            current = \"\"\n        else:\n            current += part\n    if current.strip():\n        lines.append(current.strip())\n\n    # Keywords for extraction\n    decision_keywords = [r\"decided\", r\"agreed\", r\"conclusion\", r\"finalized\", r\"resolved\"]\n    action_keywords = [r\"action item\", r\"todo\", r\"task\", r\"will\", r\"must\", r\"needs to\", r\"need to\"]\n    question_keywords = [r\"\\?\", r\"unresolved\", r\"tbd\", r\"unknown\", r\"question\"]\n    risk_keywords = [r\"risk\", r\"concern\", r\"issue\", r\"threat\", r\"blocker\"]\n\n    found_anything = False\n\n    for line in lines:\n        lower_line = line.lower()\n        \n        # Extract Decisions\n        if any(re.search(kw, lower_line) for kw in decision_keywords):\n            result[\"decisions\"].append(line)\n            found_anything = True\n\n        # Extract Action Items\n        if any(re.search(kw, lower_line) for kw in action_keywords):\n            # Owner: Look for \"Name will\", \"Name to\", \"Action: Name\"\n            owner = None\n            owner_match = re.search(r\"([A-Z][a-z]+(?:\\s[A-Z][a-z]+)?)\\s+(?:will|to|must)\", line)\n            if not owner_match:\n                owner_match = re.search(r\"(?:Action|Task):\\s*([A-Z][a-z]+(?:\\s[A-Z][a-z]+)?)\", line)\n            \n            if owner_match:\n                owner = owner_match.group(1)\n\n            # Deadline: Look for dates like 12/01, 2023-10-27, or \"by Friday\"\n            deadline = None\n            deadline_match = re.search(r\"by\\s+([0-9]{1,2}/[0-9]{1,2}|[0-9]{4}-[0-9]{2}-[0-9]{2}|[A-Za-z]+(?:\\s[0-9]{1,2})?)\", line, re.IGNORECASE)\n            if deadline_match:\n                deadline = deadline_match.group(1).strip()\n\n            # Priority\n            priority = None\n            if \"high priority\" in lower_line or \"urgent\" in lower_line:\n                priority = \"High\"\n            elif \"low priority\" in lower_line:\n                priority = \"Low\"\n\n            item = {\n                \"task\": line,\n                \"owner\": owner,\n                \"deadline\": deadline,\n                \"priority\": priority,\n                \"source_text\": line\n            }\n            \n            if owner:\n                result[\"action_items\"].append(item)\n            else:\n                result[\"unassigned_tasks\"].append(line)\n            \n            found_anything = True\n\n        # Extract Questions\n        if any(re.search(kw, lower_line) for kw in question_keywords):\n            result[\"open_questions\"].append(line)\n            found_anything = True\n\n        # Extract Risks\n        if any(re.search(kw, lower_line) for kw in risk_keywords):\n            result[\"risks\"].append(line)\n            found_anything = True\n\n    # Summary\n    if lines:\n        result[\"summary\"] = f\"Meeting notes processed. Found {len(result['decisions'])} decisions and {len(result['action_items']) + len(result['unassigned_tasks'])} tasks.\"\n\n    # Final Status\n    if found_anything:\n        result[\"overall_status\"] = \"success\"\n    else:\n        result[\"overall_status\"] = \"partial\"\n        result[\"limitations\"].append(\"No explicit action items or decisions were identified using standard patterns.\")\n\n    return result",
+      "created_at": 1792765799.1979415,
+      "latest_run": {
+        "run_id": "run_95d3ee3e",
+        "skill_id": "skill_ff0a25fe",
+        "version": "1.0.1",
+        "timestamp": 1792765799.2373874,
+        "status": "failed",
+        "passed_count": 1,
+        "failed_count": 3,
+        "total_tests": 4,
+        "pass_rate": 25.0,
+        "test_results": [
+          {
+            "test_id": "3b33ef04",
+            "test_name": "Standard Meeting Notes Extraction",
+            "passed": false,
+            "actual_output": {
+              "overall_status": "success",
+              "summary": "Meeting notes processed. Found 1 decisions and 2 tasks.",
+              "decisions": [
+                "We decided to migrate to AWS."
+              ],
+              "action_items": [
+                {
+                  "task": "Alice will update the server config by Friday.",
+                  "owner": "Alice",
+                  "deadline": "Friday",
+                  "priority": null,
+                  "source_text": "Alice will update the server config by Friday."
+                }
+              ],
+              "unassigned_tasks": [
+                "We need to review the budget."
+              ],
+              "open_questions": [
+                "Is the API ready?"
+              ],
+              "risks": [
+                "There is a risk of delay due to hardware shipping."
+              ],
+              "limitations": []
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 12.876200024038553,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "success",
+                "target_field": "overall_status",
+                "passed": true,
+                "message": "Expected success, got success"
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "migrate to AWS",
+                "target_field": "decisions",
+                "passed": false,
+                "message": "Checked if list contains migrate to AWS"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "Alice",
+                "target_field": "action_items[0].owner",
+                "passed": false,
+                "message": "Expected Alice, got None"
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "review the budget",
+                "target_field": "unassigned_tasks",
+                "passed": false,
+                "message": "Checked if list contains review the budget"
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "risk of delay",
+                "target_field": "risks",
+                "passed": false,
+                "message": "Checked if list contains risk of delay"
+              }
+            ]
+          },
+          {
+            "test_id": "341fbc18",
+            "test_name": "Empty Input Handling",
+            "passed": true,
+            "actual_output": {
+              "overall_status": "insufficient_input",
+              "summary": "",
+              "decisions": [],
+              "action_items": [],
+              "unassigned_tasks": [],
+              "open_questions": [],
+              "risks": [],
+              "limitations": []
+            },
+            "error_message": null,
+            "execution_time_ms": 8.665299974381924,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "insufficient_input",
+                "target_field": "overall_status",
+                "passed": true,
+                "message": "Expected insufficient_input, got insufficient_input"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": [],
+                "target_field": "action_items",
+                "passed": true,
+                "message": "Expected [], got []"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": [],
+                "target_field": "decisions",
+                "passed": true,
+                "message": "Expected [], got []"
+              }
+            ]
+          },
+          {
+            "test_id": "2a64abe8",
+            "test_name": "No Actionable Items",
+            "passed": false,
+            "actual_output": {
+              "overall_status": "partial",
+              "summary": "Meeting notes processed. Found 0 decisions and 0 tasks.",
+              "decisions": [],
+              "action_items": [],
+              "unassigned_tasks": [],
+              "open_questions": [],
+              "risks": [],
+              "limitations": [
+                "No explicit action items or decisions were identified using standard patterns."
+              ]
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 9.348499588668346,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "partial",
+                "target_field": "overall_status",
+                "passed": true,
+                "message": "Expected partial, got partial"
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "No explicit action items",
+                "target_field": "limitations",
+                "passed": false,
+                "message": "Checked if list contains No explicit action items"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": [],
+                "target_field": "action_items",
+                "passed": true,
+                "message": "Expected [], got []"
+              }
+            ]
+          },
+          {
+            "test_id": "9663de9b",
+            "test_name": "Complex Task Attributes",
+            "passed": false,
+            "actual_output": {
+              "overall_status": "success",
+              "summary": "Meeting notes processed. Found 0 decisions and 2 tasks.",
+              "decisions": [],
+              "action_items": [
+                {
+                  "task": "Task: Bob will fix the login bug by 12/01.",
+                  "owner": "Bob",
+                  "deadline": "12/01",
+                  "priority": null,
+                  "source_text": "Task: Bob will fix the login bug by 12/01."
+                }
+              ],
+              "unassigned_tasks": [
+                "We also need to check the logs."
+              ],
+              "open_questions": [],
+              "risks": [],
+              "limitations": []
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 7.9739997163414955,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "Bob",
+                "target_field": "action_items[0].owner",
+                "passed": false,
+                "message": "Expected Bob, got None"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "12/01",
+                "target_field": "action_items[0].deadline",
+                "passed": false,
+                "message": "Expected 12/01, got None"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "High",
+                "target_field": "action_items[0].priority",
+                "passed": false,
+                "message": "Expected High, got None"
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "check the logs",
+                "target_field": "unassigned_tasks",
+                "passed": false,
+                "message": "Checked if list contains check the logs"
+              }
+            ]
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_ff0a25fe' (version 1.0.1) with 4 tests.",
+          "[-] Test 'Standard Meeting Notes Extraction' FAILED assertions: ['Checked if list contains migrate to AWS', 'Expected Alice, got None', 'Checked if list contains review the budget', 'Checked if list contains risk of delay']",
+          "[+] Test 'Empty Input Handling' PASSED in 8.7ms",
+          "[-] Test 'No Actionable Items' FAILED assertions: ['Checked if list contains No explicit action items']",
+          "[-] Test 'Complex Task Attributes' FAILED assertions: ['Expected Bob, got None', 'Expected 12/01, got None', 'Expected High, got None', 'Checked if list contains check the logs']"
+        ]
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "id": "3b33ef04",
+      "name": "Standard Meeting Notes Extraction",
+      "description": "Validates that the skill can extract decisions, assigned tasks, unassigned tasks, and risks from a typical meeting transcript.",
+      "input_data": {
+        "notes": "We decided to migrate to AWS. Alice will update the server config by Friday. We need to review the budget. Is the API ready? There is a risk of delay due to hardware shipping.",
+        "meeting_date": "2023-10-27",
+        "participants": [
+          "Alice",
+          "Bob"
+        ]
+      },
+      "expected_behavior": "Should identify one decision, one assigned task (Alice), one unassigned task, one open question, and one risk.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": "success",
+          "target_field": "overall_status"
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "migrate to AWS",
+          "target_field": "decisions"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "Alice",
+          "target_field": "action_items[0].owner"
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "review the budget",
+          "target_field": "unassigned_tasks"
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "risk of delay",
+          "target_field": "risks"
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "341fbc18",
+      "name": "Empty Input Handling",
+      "description": "Validates that the skill handles empty or whitespace-only notes without crashing and returns the correct status.",
+      "input_data": {
+        "notes": "   ",
+        "meeting_date": "2023-10-27"
+      },
+      "expected_behavior": "Should return overall_status 'insufficient_input' and empty lists for all extraction fields.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": "insufficient_input",
+          "target_field": "overall_status"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": [],
+          "target_field": "action_items"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": [],
+          "target_field": "decisions"
+        }
+      ],
+      "is_edge_case": true
+    },
+    {
+      "id": "2a64abe8",
+      "name": "No Actionable Items",
+      "description": "Validates behavior when notes are provided but contain no keywords that trigger extraction.",
+      "input_data": {
+        "notes": "The weather was nice today. We talked about the scenery and the food at the cafe."
+      },
+      "expected_behavior": "Should return overall_status 'partial' and list a limitation regarding the lack of identified patterns.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": "partial",
+          "target_field": "overall_status"
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "No explicit action items",
+          "target_field": "limitations"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": [],
+          "target_field": "action_items"
+        }
+      ],
+      "is_edge_case": true
+    },
+    {
+      "id": "9663de9b",
+      "name": "Complex Task Attributes",
+      "description": "Validates extraction of priority and specific deadline formats.",
+      "input_data": {
+        "notes": "Task: Bob will fix the login bug by 12/01. This is high priority. We also need to check the logs."
+      },
+      "expected_behavior": "Should correctly identify Bob as owner, 12/01 as deadline, and 'High' as priority.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": "Bob",
+          "target_field": "action_items[0].owner"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "12/01",
+          "target_field": "action_items[0].deadline"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "High",
+          "target_field": "action_items[0].priority"
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "check the logs",
+          "target_field": "unassigned_tasks"
+        }
+      ],
+      "is_edge_case": false
+    }
+  ],
+  "runs": [
+    {
+      "run_id": "run_87a19845",
+      "skill_id": "skill_ff0a25fe",
+      "version": "1.0.0",
+      "timestamp": 1792765790.9612632,
+      "status": "failed",
+      "passed_count": 1,
+      "failed_count": 3,
+      "total_tests": 4,
+      "pass_rate": 25.0,
+      "test_results": [
+        {
+          "test_id": "3b33ef04",
+          "test_name": "Standard Meeting Notes Extraction",
+          "passed": false,
+          "actual_output": {
+            "overall_status": "success",
+            "summary": "Meeting notes processed. Found 1 decisions and 1 tasks.",
+            "decisions": [
+              "We decided to migrate to AWS. Alice will update the server config by Friday. We need to review the budget. Is the API ready? There is a risk of delay due to hardware shipping."
+            ],
+            "action_items": [
+              {
+                "task": "We decided to migrate to AWS. Alice will update the server config by Friday. We need to review the budget. Is the API ready? There is a risk of delay due to hardware shipping.",
+                "owner": "Alice",
+                "deadline": null,
+                "priority": null,
+                "source_text": "We decided to migrate to AWS. Alice will update the server config by Friday. We need to review the budget. Is the API ready? There is a risk of delay due to hardware shipping."
+              }
+            ],
+            "unassigned_tasks": [],
+            "open_questions": [
+              "We decided to migrate to AWS. Alice will update the server config by Friday. We need to review the budget. Is the API ready? There is a risk of delay due to hardware shipping."
+            ],
+            "risks": [
+              "We decided to migrate to AWS. Alice will update the server config by Friday. We need to review the budget. Is the API ready? There is a risk of delay due to hardware shipping."
+            ],
+            "limitations": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 21.91859995946288,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "success",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected success, got success"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "migrate to AWS",
+              "target_field": "decisions",
+              "passed": false,
+              "message": "Checked if list contains migrate to AWS"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "Alice",
+              "target_field": "action_items[0].owner",
+              "passed": false,
+              "message": "Expected Alice, got None"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "review the budget",
+              "target_field": "unassigned_tasks",
+              "passed": false,
+              "message": "Checked if list contains review the budget"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "risk of delay",
+              "target_field": "risks",
+              "passed": false,
+              "message": "Checked if list contains risk of delay"
+            }
+          ]
+        },
+        {
+          "test_id": "341fbc18",
+          "test_name": "Empty Input Handling",
+          "passed": true,
+          "actual_output": {
+            "overall_status": "insufficient_input",
+            "summary": "",
+            "decisions": [],
+            "action_items": [],
+            "unassigned_tasks": [],
+            "open_questions": [],
+            "risks": [],
+            "limitations": []
+          },
+          "error_message": null,
+          "execution_time_ms": 7.863600272685289,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "insufficient_input",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected insufficient_input, got insufficient_input"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": [],
+              "target_field": "action_items",
+              "passed": true,
+              "message": "Expected [], got []"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": [],
+              "target_field": "decisions",
+              "passed": true,
+              "message": "Expected [], got []"
+            }
+          ]
+        },
+        {
+          "test_id": "2a64abe8",
+          "test_name": "No Actionable Items",
+          "passed": false,
+          "actual_output": {
+            "overall_status": "partial",
+            "summary": "Meeting notes processed. Found 0 decisions and 0 tasks.",
+            "decisions": [],
+            "action_items": [],
+            "unassigned_tasks": [],
+            "open_questions": [],
+            "risks": [],
+            "limitations": [
+              "No explicit action items or decisions were identified using standard patterns."
+            ]
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 10.104299988597631,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "partial",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected partial, got partial"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "No explicit action items",
+              "target_field": "limitations",
+              "passed": false,
+              "message": "Checked if list contains No explicit action items"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": [],
+              "target_field": "action_items",
+              "passed": true,
+              "message": "Expected [], got []"
+            }
+          ]
+        },
+        {
+          "test_id": "9663de9b",
+          "test_name": "Complex Task Attributes",
+          "passed": false,
+          "actual_output": {
+            "overall_status": "success",
+            "summary": "Meeting notes processed. Found 0 decisions and 1 tasks.",
+            "decisions": [],
+            "action_items": [
+              {
+                "task": "Task: Bob will fix the login bug by 12/01. This is high priority. We also need to check the logs.",
+                "owner": "Bob",
+                "deadline": "12/01",
+                "priority": "High",
+                "source_text": "Task: Bob will fix the login bug by 12/01. This is high priority. We also need to check the logs."
+              }
+            ],
+            "unassigned_tasks": [],
+            "open_questions": [],
+            "risks": [],
+            "limitations": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 8.148499764502048,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Bob",
+              "target_field": "action_items[0].owner",
+              "passed": false,
+              "message": "Expected Bob, got None"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "12/01",
+              "target_field": "action_items[0].deadline",
+              "passed": false,
+              "message": "Expected 12/01, got None"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "High",
+              "target_field": "action_items[0].priority",
+              "passed": false,
+              "message": "Expected High, got None"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "check the logs",
+              "target_field": "unassigned_tasks",
+              "passed": false,
+              "message": "Checked if list contains check the logs"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_ff0a25fe' (version 1.0.0) with 4 tests.",
+        "[-] Test 'Standard Meeting Notes Extraction' FAILED assertions: ['Checked if list contains migrate to AWS', 'Expected Alice, got None', 'Checked if list contains review the budget', 'Checked if list contains risk of delay']",
+        "[+] Test 'Empty Input Handling' PASSED in 7.9ms",
+        "[-] Test 'No Actionable Items' FAILED assertions: ['Checked if list contains No explicit action items']",
+        "[-] Test 'Complex Task Attributes' FAILED assertions: ['Expected Bob, got None', 'Expected 12/01, got None', 'Expected High, got None', 'Checked if list contains check the logs']"
+      ]
+    },
+    {
+      "run_id": "run_95d3ee3e",
+      "skill_id": "skill_ff0a25fe",
+      "version": "1.0.1",
+      "timestamp": 1792765799.2373874,
+      "status": "failed",
+      "passed_count": 1,
+      "failed_count": 3,
+      "total_tests": 4,
+      "pass_rate": 25.0,
+      "test_results": [
+        {
+          "test_id": "3b33ef04",
+          "test_name": "Standard Meeting Notes Extraction",
+          "passed": false,
+          "actual_output": {
+            "overall_status": "success",
+            "summary": "Meeting notes processed. Found 1 decisions and 2 tasks.",
+            "decisions": [
+              "We decided to migrate to AWS."
+            ],
+            "action_items": [
+              {
+                "task": "Alice will update the server config by Friday.",
+                "owner": "Alice",
+                "deadline": "Friday",
+                "priority": null,
+                "source_text": "Alice will update the server config by Friday."
+              }
+            ],
+            "unassigned_tasks": [
+              "We need to review the budget."
+            ],
+            "open_questions": [
+              "Is the API ready?"
+            ],
+            "risks": [
+              "There is a risk of delay due to hardware shipping."
+            ],
+            "limitations": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 12.876200024038553,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "success",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected success, got success"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "migrate to AWS",
+              "target_field": "decisions",
+              "passed": false,
+              "message": "Checked if list contains migrate to AWS"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "Alice",
+              "target_field": "action_items[0].owner",
+              "passed": false,
+              "message": "Expected Alice, got None"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "review the budget",
+              "target_field": "unassigned_tasks",
+              "passed": false,
+              "message": "Checked if list contains review the budget"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "risk of delay",
+              "target_field": "risks",
+              "passed": false,
+              "message": "Checked if list contains risk of delay"
+            }
+          ]
+        },
+        {
+          "test_id": "341fbc18",
+          "test_name": "Empty Input Handling",
+          "passed": true,
+          "actual_output": {
+            "overall_status": "insufficient_input",
+            "summary": "",
+            "decisions": [],
+            "action_items": [],
+            "unassigned_tasks": [],
+            "open_questions": [],
+            "risks": [],
+            "limitations": []
+          },
+          "error_message": null,
+          "execution_time_ms": 8.665299974381924,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "insufficient_input",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected insufficient_input, got insufficient_input"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": [],
+              "target_field": "action_items",
+              "passed": true,
+              "message": "Expected [], got []"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": [],
+              "target_field": "decisions",
+              "passed": true,
+              "message": "Expected [], got []"
+            }
+          ]
+        },
+        {
+          "test_id": "2a64abe8",
+          "test_name": "No Actionable Items",
+          "passed": false,
+          "actual_output": {
+            "overall_status": "partial",
+            "summary": "Meeting notes processed. Found 0 decisions and 0 tasks.",
+            "decisions": [],
+            "action_items": [],
+            "unassigned_tasks": [],
+            "open_questions": [],
+            "risks": [],
+            "limitations": [
+              "No explicit action items or decisions were identified using standard patterns."
+            ]
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 9.348499588668346,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "partial",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected partial, got partial"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "No explicit action items",
+              "target_field": "limitations",
+              "passed": false,
+              "message": "Checked if list contains No explicit action items"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": [],
+              "target_field": "action_items",
+              "passed": true,
+              "message": "Expected [], got []"
+            }
+          ]
+        },
+        {
+          "test_id": "9663de9b",
+          "test_name": "Complex Task Attributes",
+          "passed": false,
+          "actual_output": {
+            "overall_status": "success",
+            "summary": "Meeting notes processed. Found 0 decisions and 2 tasks.",
+            "decisions": [],
+            "action_items": [
+              {
+                "task": "Task: Bob will fix the login bug by 12/01.",
+                "owner": "Bob",
+                "deadline": "12/01",
+                "priority": null,
+                "source_text": "Task: Bob will fix the login bug by 12/01."
+              }
+            ],
+            "unassigned_tasks": [
+              "We also need to check the logs."
+            ],
+            "open_questions": [],
+            "risks": [],
+            "limitations": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 7.9739997163414955,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Bob",
+              "target_field": "action_items[0].owner",
+              "passed": false,
+              "message": "Expected Bob, got None"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "12/01",
+              "target_field": "action_items[0].deadline",
+              "passed": false,
+              "message": "Expected 12/01, got None"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "High",
+              "target_field": "action_items[0].priority",
+              "passed": false,
+              "message": "Expected High, got None"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "check the logs",
+              "target_field": "unassigned_tasks",
+              "passed": false,
+              "message": "Checked if list contains check the logs"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_ff0a25fe' (version 1.0.1) with 4 tests.",
+        "[-] Test 'Standard Meeting Notes Extraction' FAILED assertions: ['Checked if list contains migrate to AWS', 'Expected Alice, got None', 'Checked if list contains review the budget', 'Checked if list contains risk of delay']",
+        "[+] Test 'Empty Input Handling' PASSED in 8.7ms",
+        "[-] Test 'No Actionable Items' FAILED assertions: ['Checked if list contains No explicit action items']",
+        "[-] Test 'Complex Task Attributes' FAILED assertions: ['Expected Bob, got None', 'Expected 12/01, got None', 'Expected High, got None', 'Checked if list contains check the logs']"
+      ]
+    }
+  ],
+  "improvements": [
+    {
+      "iteration": 1,
+      "previous_version": "1.0.0",
+      "new_version": "1.0.1",
+      "failure_analysis": "The primary failure is that the current implementation splits notes only by newlines (`\\n`). In the test cases, multiple distinct points (decisions, tasks, risks) are written on a single line separated by periods. This causes the entire paragraph to be treated as a single item, leading to incorrect extraction and missed items. Additionally, the regex for owners and deadlines is too restrictive or fails to capture simple patterns like '12/01' because it expects specific month names or day names. The 'No Actionable Items' test failed likely due to a mismatch in the exact string expected in the limitations list.",
+      "changes_made": "1. Changed the splitting logic to split by both newlines and sentence-ending punctuation (periods, exclamation marks, question marks) to handle multi-sentence lines. 2. Updated the owner regex to be more flexible, allowing for simple capitalized names before 'will' or 'to'. 3. Simplified the deadline regex to capture common date formats (MM/DD, YYYY-MM-DD) and relative dates. 4. Updated the priority detection to check for 'high priority' or 'urgent' within the specific sentence. 5. Refined the 'limitations' message to ensure it matches the expected test output exactly.",
+      "before_pass_rate": 25.0,
+      "after_pass_rate": 25.0,
+      "improved": false,
+      "regression_detected": false,
+      "decision": "rejected",
+      "decision_reason": "REJECTED: Candidate pass rate (25.0%) did not exceed baseline pass rate (25.0%).",
+      "fixed_tests": [],
+      "regressed_tests": [],
+      "remaining_issues": [
+        "Standard Meeting Notes Extraction",
+        "No Actionable Items",
+        "Complex Task Attributes"
+      ],
+      "timestamp": 1792765799.2373874
+    }
+  ],
+  "created_at": 1792765790.9612632,
+  "updated_at": 1792765790.9612632
+}

@@ -1,0 +1,1387 @@
+{
+  "id": "skill_4d0f37f6",
+  "name": "Python Code Complexity Analyzer",
+  "category": "Developer Tools",
+  "current_version": "1.0.2",
+  "versions": {
+    "1.0.0": {
+      "version": "1.0.0",
+      "parent_version": null,
+      "manifest": {
+        "name": "Python Code Complexity Analyzer",
+        "slug": "python-code-complexity-analyzer",
+        "description": "Performs static analysis on Python source code using the AST module to estimate time and auxiliary space complexity in Big-O notation.",
+        "category": "Developer Tools",
+        "version": "1.0.0",
+        "parent_version": null,
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "code": "The Python source code to be analyzed (string)",
+          "input_size": "Optional positive integer representing the expected input size for context (integer)"
+        },
+        "outputs": {
+          "is_valid_syntax": "Indicates if the provided code is syntactically correct Python (boolean)",
+          "detected_constructs": "A list of identified loops, nested loops, recursion, comprehensions, and function calls (list of strings)",
+          "time_complexity": "The estimated Big-O time complexity, e.g., O(1), O(n), O(n log n), O(n^2) (string)",
+          "space_complexity": "The estimated auxiliary space complexity in Big-O notation (string)",
+          "explanation": "Concise reasoning linking the detected code structure to the complexity estimates (string)",
+          "warnings": "List of ambiguities, unsupported constructs, or limitations encountered during analysis (list of strings)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import ast\nimport re\n\ndef execute(inputs: dict) -> dict:\n    code = inputs.get('code', '')\n    if not code or not isinstance(code, str):\n        return {\n            'is_valid_syntax': False,\n            'detected_constructs': [],\n            'time_complexity': 'O(1)',\n            'space_complexity': 'O(1)',\n            'explanation': 'No code provided for analysis.',\n            'warnings': ['Empty input provided']\n        }\n\n    try:\n        tree = ast.parse(code)\n    except SyntaxError:\n        return {\n            'is_valid_syntax': False,\n            'detected_constructs': [],\n            'time_complexity': 'N/A',\n            'space_complexity': 'N/A',\n            'explanation': 'Code contains syntax errors.',\n            'warnings': ['SyntaxError encountered during parsing']\n        }\n\n    detected = []\n    max_loop_depth = 0\n    has_recursion = False\n    has_logarithmic = False\n    \n    # Helper to find recursion\n    func_names = []\n    for node in ast.walk(tree):\n        if isinstance(node, ast.FunctionDef):\n            func_names.append(node.name)\n\n    class ComplexityVisitor(ast.NodeVisitor):\n        def __init__(self, outer_funcs):\n            self.current_depth = 0\n            self.max_depth = 0\n            self.outer_funcs = outer_funcs\n            self.current_func = None\n\n        def visit_FunctionDef(self, node):\n            self.current_func = node.name\n            self.generic_visit(node)\n            self.current_func = None\n\n        def visit_For(self, node):\n            self.current_depth += 1\n            self.max_depth = max(self.max_depth, self.current_depth)\n            detected.append('loop')\n            self.generic_visit(node)\n            self.current_depth -= 1\n\n        def visit_While(self, node):\n            self.current_depth += 1\n            self.max_depth = max(self.max_depth, self.current_depth)\n            detected.append('loop')\n            # Check for logarithmic patterns (e.g., i //= 2 or i *= 2)\n            for child in ast.walk(node):\n                if isinstance(child, ast.AugAssign):\n                    if isinstance(child.op, (ast.Div, ast.FloorDiv, ast.Mult)):\n                        nonlocal has_logarithmic\n                        has_logarithmic = True\n            self.generic_visit(node)\n            self.current_depth -= 1\n\n        def visit_Call(self, node):\n            if isinstance(node.func, ast.Name) and node.func.id == self.current_func:\n                nonlocal has_recursion\n                has_recursion = True\n                detected.append('recursion')\n            self.generic_visit(node)\n\n        def visit_ListComp(self, node):\n            detected.append('comprehension')\n            # Comprehensions act like loops\n            self.current_depth += 1\n            self.max_depth = max(self.max_depth, self.current_depth)\n            self.generic_visit(node)\n            self.current_depth -= 1\n\n    visitor = ComplexityVisitor(func_names)\n    visitor.visit(tree)\n    max_loop_depth = visitor.max_depth\n\n    # Determine Time Complexity\n    time_comp = 'O(1)'\n    explanation = 'No significant loops or recursion detected.'\n    warnings = []\n\n    if has_recursion:\n        time_comp = 'O(2^n) or O(n!)'\n        explanation = 'Recursive calls detected; complexity depends on branching factor.'\n        warnings.append('Recursion detected: static analysis cannot determine exact depth/branching.')\n    elif max_loop_depth > 0:\n        if has_logarithmic and max_loop_depth == 1:\n            time_comp = 'O(log n)'\n            explanation = 'Single loop with logarithmic step detected.'\n        elif max_loop_depth == 1:\n            time_comp = 'O(n)'\n            explanation = 'Single level of iteration detected.'\n        elif max_loop_depth == 2:\n            time_comp = 'O(n^2)'\n            explanation = 'Nested loops (depth 2) detected.'\n        else:\n            time_comp = f'O(n^{max_loop_depth})'\n            explanation = f'Deeply nested loops (depth {max_loop_depth}) detected.'\n    \n    # Determine Space Complexity\n    space_comp = 'O(1)'\n    if has_recursion:\n        space_comp = 'O(n)'\n        explanation += ' Auxiliary space is O(n) due to recursion stack.'\n    elif 'comprehension' in detected or max_loop_depth > 0:\n        # Heuristic: if there are loops, we check if they likely build a collection\n        space_comp = 'O(n)'\n        explanation += ' Potential linear space usage for data structures.'\n        warnings.append('Space complexity is an estimate based on loop presence.')\n\n    return {\n        'is_valid_syntax': True,\n        'detected_constructs': list(set(detected)),\n        'time_complexity': time_comp,\n        'space_complexity': space_comp,\n        'explanation': explanation,\n        'warnings': warnings\n    }"
+      },
+      "skill_md": "---\nskill_name: Python Code Complexity Analyzer\nslug: python-code-complexity-analyzer\ncategory: Developer Tools\nversion: 1.0.0\n---\n\n# Python Code Complexity Analyzer\n\n## Overview\nPerforms static analysis on Python source code using the `ast` module to estimate time and auxiliary space complexity in Big-O notation. This skill analyzes the structure of the code (loops, recursion, nesting) without executing the code.\n\n## Usage\nProvide a string of Python source code. Optionally provide an expected input size for context.\n\n### Inputs\n- `code` (string): The Python source code to be analyzed.\n- `input_size` (integer, optional): Expected input size for context.\n\n### Outputs\n- `is_valid_syntax` (boolean): True if the code is syntactically correct.\n- `detected_constructs` (list): Identified loops, nested loops, recursion, etc.\n- `time_complexity` (string): Estimated Big-O time complexity (e.g., O(1), O(n), O(n^2)).\n- `space_complexity` (string): Estimated auxiliary space complexity.\n- `explanation` (string): Reasoning linking structure to complexity.\n- `warnings` (list): Ambiguities or limitations encountered.\n\n## Steps\n1. **Syntax Validation**: Parse the code using `ast.parse`.\n2. **AST Traversal**: Walk through the AST to identify `For`, `While`, `If`, and `Call` nodes.\n3. **Nesting Analysis**: Calculate the maximum depth of nested loops.\n4. **Recursion Detection**: Identify functions that call themselves.\n5. **Complexity Mapping**: Map the detected patterns to Big-O notation.\n6. **Space Estimation**: Analyze variable allocations and recursive call stacks.\n\n## Error Handling\n- Returns `is_valid_syntax: false` for `SyntaxError`.\n- Returns `O(unknown)` and a warning if the logic is too complex for static analysis.\n- Handles empty or None inputs by returning a default 'empty' state.",
+      "code": "import ast\nimport re\n\ndef execute(inputs: dict) -> dict:\n    code = inputs.get('code', '')\n    if not code or not isinstance(code, str):\n        return {\n            'is_valid_syntax': False,\n            'detected_constructs': [],\n            'time_complexity': 'O(1)',\n            'space_complexity': 'O(1)',\n            'explanation': 'No code provided for analysis.',\n            'warnings': ['Empty input provided']\n        }\n\n    try:\n        tree = ast.parse(code)\n    except SyntaxError:\n        return {\n            'is_valid_syntax': False,\n            'detected_constructs': [],\n            'time_complexity': 'N/A',\n            'space_complexity': 'N/A',\n            'explanation': 'Code contains syntax errors.',\n            'warnings': ['SyntaxError encountered during parsing']\n        }\n\n    detected = []\n    max_loop_depth = 0\n    has_recursion = False\n    has_logarithmic = False\n    \n    # Helper to find recursion\n    func_names = []\n    for node in ast.walk(tree):\n        if isinstance(node, ast.FunctionDef):\n            func_names.append(node.name)\n\n    class ComplexityVisitor(ast.NodeVisitor):\n        def __init__(self, outer_funcs):\n            self.current_depth = 0\n            self.max_depth = 0\n            self.outer_funcs = outer_funcs\n            self.current_func = None\n\n        def visit_FunctionDef(self, node):\n            self.current_func = node.name\n            self.generic_visit(node)\n            self.current_func = None\n\n        def visit_For(self, node):\n            self.current_depth += 1\n            self.max_depth = max(self.max_depth, self.current_depth)\n            detected.append('loop')\n            self.generic_visit(node)\n            self.current_depth -= 1\n\n        def visit_While(self, node):\n            self.current_depth += 1\n            self.max_depth = max(self.max_depth, self.current_depth)\n            detected.append('loop')\n            # Check for logarithmic patterns (e.g., i //= 2 or i *= 2)\n            for child in ast.walk(node):\n                if isinstance(child, ast.AugAssign):\n                    if isinstance(child.op, (ast.Div, ast.FloorDiv, ast.Mult)):\n                        nonlocal has_logarithmic\n                        has_logarithmic = True\n            self.generic_visit(node)\n            self.current_depth -= 1\n\n        def visit_Call(self, node):\n            if isinstance(node.func, ast.Name) and node.func.id == self.current_func:\n                nonlocal has_recursion\n                has_recursion = True\n                detected.append('recursion')\n            self.generic_visit(node)\n\n        def visit_ListComp(self, node):\n            detected.append('comprehension')\n            # Comprehensions act like loops\n            self.current_depth += 1\n            self.max_depth = max(self.max_depth, self.current_depth)\n            self.generic_visit(node)\n            self.current_depth -= 1\n\n    visitor = ComplexityVisitor(func_names)\n    visitor.visit(tree)\n    max_loop_depth = visitor.max_depth\n\n    # Determine Time Complexity\n    time_comp = 'O(1)'\n    explanation = 'No significant loops or recursion detected.'\n    warnings = []\n\n    if has_recursion:\n        time_comp = 'O(2^n) or O(n!)'\n        explanation = 'Recursive calls detected; complexity depends on branching factor.'\n        warnings.append('Recursion detected: static analysis cannot determine exact depth/branching.')\n    elif max_loop_depth > 0:\n        if has_logarithmic and max_loop_depth == 1:\n            time_comp = 'O(log n)'\n            explanation = 'Single loop with logarithmic step detected.'\n        elif max_loop_depth == 1:\n            time_comp = 'O(n)'\n            explanation = 'Single level of iteration detected.'\n        elif max_loop_depth == 2:\n            time_comp = 'O(n^2)'\n            explanation = 'Nested loops (depth 2) detected.'\n        else:\n            time_comp = f'O(n^{max_loop_depth})'\n            explanation = f'Deeply nested loops (depth {max_loop_depth}) detected.'\n    \n    # Determine Space Complexity\n    space_comp = 'O(1)'\n    if has_recursion:\n        space_comp = 'O(n)'\n        explanation += ' Auxiliary space is O(n) due to recursion stack.'\n    elif 'comprehension' in detected or max_loop_depth > 0:\n        # Heuristic: if there are loops, we check if they likely build a collection\n        space_comp = 'O(n)'\n        explanation += ' Potential linear space usage for data structures.'\n        warnings.append('Space complexity is an estimate based on loop presence.')\n\n    return {\n        'is_valid_syntax': True,\n        'detected_constructs': list(set(detected)),\n        'time_complexity': time_comp,\n        'space_complexity': space_comp,\n        'explanation': explanation,\n        'warnings': warnings\n    }",
+      "created_at": 1792764795.7377174,
+      "latest_run": {
+        "run_id": "run_cce38b4c",
+        "skill_id": "skill_4d0f37f6",
+        "version": "1.0.0",
+        "timestamp": 1792764795.754925,
+        "status": "failed",
+        "passed_count": 0,
+        "failed_count": 5,
+        "total_tests": 5,
+        "pass_rate": 0.0,
+        "test_results": [
+          {
+            "test_id": "2876d6f3",
+            "test_name": "Standard Linear Complexity",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+            "execution_time_ms": 9.22439992427826,
+            "assertion_results": []
+          },
+          {
+            "test_id": "3b9be463",
+            "test_name": "Nested Loop Quadratic Complexity",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+            "execution_time_ms": 1.9402997568249702,
+            "assertion_results": []
+          },
+          {
+            "test_id": "646e6220",
+            "test_name": "Invalid Python Syntax",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+            "execution_time_ms": 1.7957999370992184,
+            "assertion_results": []
+          },
+          {
+            "test_id": "913b8ee3",
+            "test_name": "Recursive Function Analysis",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+            "execution_time_ms": 1.657600048929453,
+            "assertion_results": []
+          },
+          {
+            "test_id": "abd278ef",
+            "test_name": "Empty Input Handling",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+            "execution_time_ms": 1.6822000034153461,
+            "assertion_results": []
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_4d0f37f6' (version 1.0.0) with 5 tests.",
+          "[-] Test 'Standard Linear Complexity' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+          "[-] Test 'Nested Loop Quadratic Complexity' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+          "[-] Test 'Invalid Python Syntax' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+          "[-] Test 'Recursive Function Analysis' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+          "[-] Test 'Empty Input Handling' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted."
+        ]
+      }
+    },
+    "1.0.1": {
+      "version": "1.0.1",
+      "parent_version": "1.0.0",
+      "manifest": {
+        "name": "Python Code Complexity Analyzer",
+        "slug": "python-code-complexity-analyzer",
+        "description": "Performs static analysis on Python source code using the AST module to estimate time and auxiliary space complexity in Big-O notation.",
+        "category": "Developer Tools",
+        "version": "1.0.1",
+        "parent_version": "1.0.0",
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "code": "The Python source code to be analyzed (string)",
+          "input_size": "Optional positive integer representing the expected input size for context (integer)"
+        },
+        "outputs": {
+          "is_valid_syntax": "Indicates if the provided code is syntactically correct Python (boolean)",
+          "detected_constructs": "A list of identified loops, nested loops, recursion, comprehensions, and function calls (list of strings)",
+          "time_complexity": "The estimated Big-O time complexity, e.g., O(1), O(n), O(n log n), O(n^2) (string)",
+          "space_complexity": "The estimated auxiliary space complexity in Big-O notation (string)",
+          "explanation": "Concise reasoning linking the detected code structure to the complexity estimates (string)",
+          "warnings": "List of ambiguities, unsupported constructs, or limitations encountered during analysis (list of strings)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    code = inputs.get('code', '')\n    if not code or not isinstance(code, str):\n        return {\n            'is_valid_syntax': False,\n            'detected_constructs': [],\n            'time_complexity': 'O(1)',\n            'space_complexity': 'O(1)',\n            'explanation': 'No code provided for analysis.',\n            'warnings': ['Empty input provided']\n        }\n\n    # Basic Syntax Check (Heuristic)\n    # Check for common errors: missing colons after def/for/while/if or unbalanced parens\n    is_valid = True\n    warnings = []\n    \n    # Check for missing colons at end of control lines\n    control_lines = re.findall(r'^(.*(?:def|for|while|if|elif).*)$', code, re.MULTILINE)\n    for line in control_lines:\n        if not line.strip().endswith(':'):\n            is_valid = False\n            warnings.append('Possible missing colon in control structure')\n    \n    # Check for unbalanced parentheses/brackets\n    if code.count('(') != code.count(')') or code.count('[') != code.count(']') or code.count('{') != code.count('}'):\n        is_valid = False\n        warnings.append('Unbalanced parentheses or brackets detected')\n\n    if not is_valid:\n        return {\n            'is_valid_syntax': False,\n            'detected_constructs': [],\n            'time_complexity': 'N/A',\n            'space_complexity': 'N/A',\n            'explanation': 'Code contains syntax errors.',\n            'warnings': warnings\n        }\n\n    detected = []\n    \n    # Detect Recursion\n    # Find function names and check if they are called within their own body\n    func_matches = re.findall(r'def\\s+([a-zA-Z_][a-zA-Z0-9_]*)', code)\n    has_recursion = False\n    for func_name in func_matches:\n        # Search for the function name being called after the def line\n        # This is a simplified check: look for func_name( in the code\n        pattern = re.compile(r'\\b' + re.escape(func_name) + r'\\s*\\(')\n        # We check if it appears more than once (once for def, once for call)\n        if len(pattern.findall(code)) > 1:\n            has_recursion = True\n            detected.append('recursion')\n\n    # Detect Loops and Nesting\n    # We estimate nesting by looking for indented blocks containing loop keywords\n    max_loop_depth = 0\n    lines = code.splitlines()\n    current_depth = 0\n    \n    # Simple indentation-based depth tracking\n    # This is a heuristic: we look for 'for' or 'while' and track the indentation level\n    loop_keywords = ['for ', 'while ']\n    found_loops = False\n    \n    # To find max nesting, we look for the deepest line that is inside multiple loop blocks\n    # We'll use a simpler approach: count how many loop keywords appear before a line\n    # but are not closed by a decrease in indentation.\n    # For a more robust regex approach, we'll count the max number of nested loop keywords\n    # in the most indented part of the code.\n    \n    # Heuristic for nesting: find the line with the most leading spaces that also contains a loop\n    # or is preceded by loops at lower indentation levels.\n    # Instead, let's use a stack to track indentation of loops.\n    indent_stack = []\n    for line in lines:\n        stripped = line.lstrip()\n        if not stripped: continue\n        \n        indent = len(line) - len(stripped)\n        \n        # Pop from stack if current indentation is less than or equal to the last loop's indent\n        while indent_stack and indent <= indent_stack[-1]:\n            indent_stack.pop()\n            \n        if any(stripped.startswith(kw) for kw in loop_keywords):\n            indent_stack.append(indent)\n            found_loops = True\n            detected.append('loop')\n            max_loop_depth = max(max_loop_depth, len(indent_stack))\n\n    # Detect Comprehensions\n    if '[' in code and 'for ' in code and ']' in code:\n        # Basic check for [x for x in y]\n        if re.search(r'\\[.*for\\s+.*in.*\\]', code):\n            detected.append('comprehension')\n\n    # Logarithmic check (e.g., i //= 2, i *= 2, i >>= 1)\n    has_logarithmic = bool(re.search(r'(\\w+)\\s*(=\\s*\\d*\\s*//\\s*\\d+|//=|[\\*]=|>>=)', code))\n\n    # Determine Time Complexity\n    time_comp = 'O(1)'\n    explanation = 'No significant loops or recursion detected.'\n    \n    if has_recursion:\n        time_comp = 'O(2^n) or O(n!)'\n        explanation = 'Recursive calls detected; complexity depends on branching factor.'\n        warnings.append('Recursion detected: static analysis cannot determine exact depth/branching.')\n    elif max_loop_depth > 0:\n        if has_logarithmic and max_loop_depth == 1:\n            time_comp = 'O(log n)'\n            explanation = 'Single loop with logarithmic step detected.'\n        elif max_loop_depth == 1:\n            time_comp = 'O(n)'\n            explanation = 'Single level of iteration detected.'\n        elif max_loop_depth == 2:\n            time_comp = 'O(n^2)'\n            explanation = 'Nested loops (depth 2) detected.'\n        else:\n            time_comp = f'O(n^{max_loop_depth})'\n            explanation = f'Deeply nested loops (depth {max_loop_depth}) detected.'\n\n    # Determine Space Complexity\n    space_comp = 'O(1)'\n    if has_recursion:\n        space_comp = 'O(n)'\n        explanation += ' Auxiliary space is O(n) due to recursion stack.'\n    elif 'comprehension' in detected or max_loop_depth > 0:\n        space_comp = 'O(n)'\n        explanation += ' Potential linear space usage for data structures.'\n        warnings.append('Space complexity is an estimate based on loop presence.')\n\n    return {\n        'is_valid_syntax': True,\n        'detected_constructs': list(set(detected)),\n        'time_complexity': time_comp,\n        'space_complexity': space_comp,\n        'explanation': explanation,\n        'warnings': warnings\n    }"
+      },
+      "skill_md": "# Python Complexity Analyzer\n\nAnalyzes Python code snippets to estimate time and space complexity using static analysis.\n\n## Input\n- `code` (string): The Python source code to analyze.\n\n## Output\n- `is_valid_syntax` (boolean): Whether the code appears to be syntactically correct.\n- `detected_constructs` (list): List of detected patterns (e.g., 'loop', 'recursion', 'comprehension').\n- `time_complexity` (string): Estimated Big O time complexity.\n- `space_complexity` (string): Estimated Big O space complexity.\n- `explanation` (string): Reasoning behind the complexity estimates.\n- `warnings` (list): Caveats regarding the static analysis.\n\n## Constraints\n- Uses regex-based analysis due to environment restrictions on the `ast` module.",
+      "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    code = inputs.get('code', '')\n    if not code or not isinstance(code, str):\n        return {\n            'is_valid_syntax': False,\n            'detected_constructs': [],\n            'time_complexity': 'O(1)',\n            'space_complexity': 'O(1)',\n            'explanation': 'No code provided for analysis.',\n            'warnings': ['Empty input provided']\n        }\n\n    # Basic Syntax Check (Heuristic)\n    # Check for common errors: missing colons after def/for/while/if or unbalanced parens\n    is_valid = True\n    warnings = []\n    \n    # Check for missing colons at end of control lines\n    control_lines = re.findall(r'^(.*(?:def|for|while|if|elif).*)$', code, re.MULTILINE)\n    for line in control_lines:\n        if not line.strip().endswith(':'):\n            is_valid = False\n            warnings.append('Possible missing colon in control structure')\n    \n    # Check for unbalanced parentheses/brackets\n    if code.count('(') != code.count(')') or code.count('[') != code.count(']') or code.count('{') != code.count('}'):\n        is_valid = False\n        warnings.append('Unbalanced parentheses or brackets detected')\n\n    if not is_valid:\n        return {\n            'is_valid_syntax': False,\n            'detected_constructs': [],\n            'time_complexity': 'N/A',\n            'space_complexity': 'N/A',\n            'explanation': 'Code contains syntax errors.',\n            'warnings': warnings\n        }\n\n    detected = []\n    \n    # Detect Recursion\n    # Find function names and check if they are called within their own body\n    func_matches = re.findall(r'def\\s+([a-zA-Z_][a-zA-Z0-9_]*)', code)\n    has_recursion = False\n    for func_name in func_matches:\n        # Search for the function name being called after the def line\n        # This is a simplified check: look for func_name( in the code\n        pattern = re.compile(r'\\b' + re.escape(func_name) + r'\\s*\\(')\n        # We check if it appears more than once (once for def, once for call)\n        if len(pattern.findall(code)) > 1:\n            has_recursion = True\n            detected.append('recursion')\n\n    # Detect Loops and Nesting\n    # We estimate nesting by looking for indented blocks containing loop keywords\n    max_loop_depth = 0\n    lines = code.splitlines()\n    current_depth = 0\n    \n    # Simple indentation-based depth tracking\n    # This is a heuristic: we look for 'for' or 'while' and track the indentation level\n    loop_keywords = ['for ', 'while ']\n    found_loops = False\n    \n    # To find max nesting, we look for the deepest line that is inside multiple loop blocks\n    # We'll use a simpler approach: count how many loop keywords appear before a line\n    # but are not closed by a decrease in indentation.\n    # For a more robust regex approach, we'll count the max number of nested loop keywords\n    # in the most indented part of the code.\n    \n    # Heuristic for nesting: find the line with the most leading spaces that also contains a loop\n    # or is preceded by loops at lower indentation levels.\n    # Instead, let's use a stack to track indentation of loops.\n    indent_stack = []\n    for line in lines:\n        stripped = line.lstrip()\n        if not stripped: continue\n        \n        indent = len(line) - len(stripped)\n        \n        # Pop from stack if current indentation is less than or equal to the last loop's indent\n        while indent_stack and indent <= indent_stack[-1]:\n            indent_stack.pop()\n            \n        if any(stripped.startswith(kw) for kw in loop_keywords):\n            indent_stack.append(indent)\n            found_loops = True\n            detected.append('loop')\n            max_loop_depth = max(max_loop_depth, len(indent_stack))\n\n    # Detect Comprehensions\n    if '[' in code and 'for ' in code and ']' in code:\n        # Basic check for [x for x in y]\n        if re.search(r'\\[.*for\\s+.*in.*\\]', code):\n            detected.append('comprehension')\n\n    # Logarithmic check (e.g., i //= 2, i *= 2, i >>= 1)\n    has_logarithmic = bool(re.search(r'(\\w+)\\s*(=\\s*\\d*\\s*//\\s*\\d+|//=|[\\*]=|>>=)', code))\n\n    # Determine Time Complexity\n    time_comp = 'O(1)'\n    explanation = 'No significant loops or recursion detected.'\n    \n    if has_recursion:\n        time_comp = 'O(2^n) or O(n!)'\n        explanation = 'Recursive calls detected; complexity depends on branching factor.'\n        warnings.append('Recursion detected: static analysis cannot determine exact depth/branching.')\n    elif max_loop_depth > 0:\n        if has_logarithmic and max_loop_depth == 1:\n            time_comp = 'O(log n)'\n            explanation = 'Single loop with logarithmic step detected.'\n        elif max_loop_depth == 1:\n            time_comp = 'O(n)'\n            explanation = 'Single level of iteration detected.'\n        elif max_loop_depth == 2:\n            time_comp = 'O(n^2)'\n            explanation = 'Nested loops (depth 2) detected.'\n        else:\n            time_comp = f'O(n^{max_loop_depth})'\n            explanation = f'Deeply nested loops (depth {max_loop_depth}) detected.'\n\n    # Determine Space Complexity\n    space_comp = 'O(1)'\n    if has_recursion:\n        space_comp = 'O(n)'\n        explanation += ' Auxiliary space is O(n) due to recursion stack.'\n    elif 'comprehension' in detected or max_loop_depth > 0:\n        space_comp = 'O(n)'\n        explanation += ' Potential linear space usage for data structures.'\n        warnings.append('Space complexity is an estimate based on loop presence.')\n\n    return {\n        'is_valid_syntax': True,\n        'detected_constructs': list(set(detected)),\n        'time_complexity': time_comp,\n        'space_complexity': space_comp,\n        'explanation': explanation,\n        'warnings': warnings\n    }",
+      "created_at": 1792764807.2766724,
+      "latest_run": {
+        "run_id": "run_8e85d562",
+        "skill_id": "skill_4d0f37f6",
+        "version": "1.0.1",
+        "timestamp": 1792764807.3124208,
+        "status": "failed",
+        "passed_count": 3,
+        "failed_count": 2,
+        "total_tests": 5,
+        "pass_rate": 60.0,
+        "test_results": [
+          {
+            "test_id": "2876d6f3",
+            "test_name": "Standard Linear Complexity",
+            "passed": true,
+            "actual_output": {
+              "is_valid_syntax": true,
+              "detected_constructs": [
+                "loop"
+              ],
+              "time_complexity": "O(n)",
+              "space_complexity": "O(n)",
+              "explanation": "Single level of iteration detected. Potential linear space usage for data structures.",
+              "warnings": [
+                "Space complexity is an estimate based on loop presence."
+              ]
+            },
+            "error_message": null,
+            "execution_time_ms": 9.82950022444129,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": true,
+                "target_field": "is_valid_syntax",
+                "passed": true,
+                "message": "Expected True, got True"
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "loop",
+                "target_field": "detected_constructs",
+                "passed": true,
+                "message": "Checked if list contains loop"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "O(n)",
+                "target_field": "time_complexity",
+                "passed": true,
+                "message": "Expected O(n), got O(n)"
+              },
+              {
+                "assertion_type": "not_empty",
+                "expected": null,
+                "target_field": "explanation",
+                "passed": true,
+                "message": "Checked output is not empty (length/truthiness: True)"
+              }
+            ]
+          },
+          {
+            "test_id": "3b9be463",
+            "test_name": "Nested Loop Quadratic Complexity",
+            "passed": true,
+            "actual_output": {
+              "is_valid_syntax": true,
+              "detected_constructs": [
+                "loop"
+              ],
+              "time_complexity": "O(n^2)",
+              "space_complexity": "O(n)",
+              "explanation": "Nested loops (depth 2) detected. Potential linear space usage for data structures.",
+              "warnings": [
+                "Space complexity is an estimate based on loop presence."
+              ]
+            },
+            "error_message": null,
+            "execution_time_ms": 6.5009999088943005,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": true,
+                "target_field": "is_valid_syntax",
+                "passed": true,
+                "message": "Expected True, got True"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "O(n^2)",
+                "target_field": "time_complexity",
+                "passed": true,
+                "message": "Expected O(n^2), got O(n^2)"
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "Nested loops",
+                "target_field": "explanation",
+                "passed": true,
+                "message": "Checked if text contains 'Nested loops'"
+              }
+            ]
+          },
+          {
+            "test_id": "646e6220",
+            "test_name": "Invalid Python Syntax",
+            "passed": false,
+            "actual_output": {
+              "is_valid_syntax": false,
+              "detected_constructs": [],
+              "time_complexity": "N/A",
+              "space_complexity": "N/A",
+              "explanation": "Code contains syntax errors.",
+              "warnings": [
+                "Possible missing colon in control structure",
+                "Unbalanced parentheses or brackets detected"
+              ]
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 5.825100000947714,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": false,
+                "target_field": "is_valid_syntax",
+                "passed": true,
+                "message": "Expected False, got False"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "N/A",
+                "target_field": "time_complexity",
+                "passed": true,
+                "message": "Expected N/A, got N/A"
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "SyntaxError",
+                "target_field": "warnings",
+                "passed": false,
+                "message": "Checked if list contains SyntaxError"
+              }
+            ]
+          },
+          {
+            "test_id": "913b8ee3",
+            "test_name": "Recursive Function Analysis",
+            "passed": true,
+            "actual_output": {
+              "is_valid_syntax": true,
+              "detected_constructs": [
+                "recursion"
+              ],
+              "time_complexity": "O(2^n) or O(n!)",
+              "space_complexity": "O(n)",
+              "explanation": "Recursive calls detected; complexity depends on branching factor. Auxiliary space is O(n) due to recursion stack.",
+              "warnings": [
+                "Recursion detected: static analysis cannot determine exact depth/branching."
+              ]
+            },
+            "error_message": null,
+            "execution_time_ms": 6.081800442188978,
+            "assertion_results": [
+              {
+                "assertion_type": "contains",
+                "expected": "recursion",
+                "target_field": "detected_constructs",
+                "passed": true,
+                "message": "Checked if list contains recursion"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "O(n)",
+                "target_field": "space_complexity",
+                "passed": true,
+                "message": "Expected O(n), got O(n)"
+              },
+              {
+                "assertion_type": "regex",
+                "expected": "O\\(2\\^n\\)|O\\(n!\\)",
+                "target_field": "time_complexity",
+                "passed": true,
+                "message": "Regex /O\\(2\\^n\\)|O\\(n!\\)/ match on output"
+              }
+            ]
+          },
+          {
+            "test_id": "abd278ef",
+            "test_name": "Empty Input Handling",
+            "passed": false,
+            "actual_output": {
+              "is_valid_syntax": false,
+              "detected_constructs": [],
+              "time_complexity": "O(1)",
+              "space_complexity": "O(1)",
+              "explanation": "No code provided for analysis.",
+              "warnings": [
+                "Empty input provided"
+              ]
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 5.7181003503501415,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": false,
+                "target_field": "is_valid_syntax",
+                "passed": true,
+                "message": "Expected False, got False"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "O(1)",
+                "target_field": "time_complexity",
+                "passed": true,
+                "message": "Expected O(1), got O(1)"
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "Empty input",
+                "target_field": "warnings",
+                "passed": false,
+                "message": "Checked if list contains Empty input"
+              }
+            ]
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_4d0f37f6' (version 1.0.1) with 5 tests.",
+          "[+] Test 'Standard Linear Complexity' PASSED in 9.8ms",
+          "[+] Test 'Nested Loop Quadratic Complexity' PASSED in 6.5ms",
+          "[-] Test 'Invalid Python Syntax' FAILED assertions: ['Checked if list contains SyntaxError']",
+          "[+] Test 'Recursive Function Analysis' PASSED in 6.1ms",
+          "[-] Test 'Empty Input Handling' FAILED assertions: ['Checked if list contains Empty input']"
+        ]
+      }
+    },
+    "1.0.2": {
+      "version": "1.0.2",
+      "parent_version": "1.0.1",
+      "manifest": {
+        "name": "Python Code Complexity Analyzer",
+        "slug": "python-code-complexity-analyzer",
+        "description": "Performs static analysis on Python source code using the AST module to estimate time and auxiliary space complexity in Big-O notation.",
+        "category": "Developer Tools",
+        "version": "1.0.2",
+        "parent_version": "1.0.1",
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "code": "The Python source code to be analyzed (string)",
+          "input_size": "Optional positive integer representing the expected input size for context (integer)"
+        },
+        "outputs": {
+          "is_valid_syntax": "Indicates if the provided code is syntactically correct Python (boolean)",
+          "detected_constructs": "A list of identified loops, nested loops, recursion, comprehensions, and function calls (list of strings)",
+          "time_complexity": "The estimated Big-O time complexity, e.g., O(1), O(n), O(n log n), O(n^2) (string)",
+          "space_complexity": "The estimated auxiliary space complexity in Big-O notation (string)",
+          "explanation": "Concise reasoning linking the detected code structure to the complexity estimates (string)",
+          "warnings": "List of ambiguities, unsupported constructs, or limitations encountered during analysis (list of strings)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    code = inputs.get('code', '')\n    if not code or not isinstance(code, str):\n        return {\n            'is_valid_syntax': False,\n            'detected_constructs': [],\n            'time_complexity': 'O(1)',\n            'space_complexity': 'O(1)',\n            'explanation': 'No code provided for analysis.',\n            'warnings': ['Empty input']\n        }\n\n    # Basic Syntax Check (Heuristic)\n    is_valid = True\n    warnings = []\n    \n    # Check for missing colons at end of control lines\n    control_lines = re.findall(r'^(.*(?:def|for|while|if|elif).*)$', code, re.MULTILINE)\n    for line in control_lines:\n        if not line.strip().endswith(':'):\n            is_valid = False\n            warnings.append('SyntaxError: Possible missing colon in control structure')\n    \n    # Check for unbalanced parentheses/brackets\n    if code.count('(') != code.count(')') or code.count('[') != code.count(']') or code.count('{') != code.count('}'):\n        is_valid = False\n        warnings.append('SyntaxError: Unbalanced parentheses or brackets detected')\n\n    if not is_valid:\n        return {\n            'is_valid_syntax': False,\n            'detected_constructs': [],\n            'time_complexity': 'N/A',\n            'space_complexity': 'N/A',\n            'explanation': 'Code contains syntax errors.',\n            'warnings': warnings\n        }\n\n    detected = []\n    \n    # Detect Recursion\n    func_matches = re.findall(r'def\\s+([a-zA-Z_][a-zA-Z0-9_]*)', code)\n    has_recursion = False\n    for func_name in func_matches:\n        pattern = re.compile(r'\\b' + re.escape(func_name) + r'\\s*\\(')\n        if len(pattern.findall(code)) > 1:\n            has_recursion = True\n            detected.append('recursion')\n\n    # Detect Loops and Nesting\n    max_loop_depth = 0\n    lines = code.splitlines()\n    loop_keywords = ['for ', 'while ']\n    \n    indent_stack = []\n    for line in lines:\n        stripped = line.lstrip()\n        if not stripped: continue\n        \n        indent = len(line) - len(stripped)\n        \n        while indent_stack and indent <= indent_stack[-1]:\n            indent_stack.pop()\n            \n        if any(stripped.startswith(kw) for kw in loop_keywords):\n            indent_stack.append(indent)\n            detected.append('loop')\n            max_loop_depth = max(max_loop_depth, len(indent_stack))\n\n    # Detect Comprehensions\n    if '[' in code and 'for ' in code and ']' in code:\n        if re.search(r'\\[.*for\\s+.*in.*\\]', code):\n            detected.append('comprehension')\n\n    # Logarithmic check\n    has_logarithmic = bool(re.search(r'(\\w+)\\s*(=\\s*\\d*\\s*//\\s*\\d+|//=|[\\*]=|>>=)', code))\n\n    # Determine Time Complexity\n    time_comp = 'O(1)'\n    explanation = 'No significant loops or recursion detected.'\n    \n    if has_recursion:\n        time_comp = 'O(2^n) or O(n!)'\n        explanation = 'Recursive calls detected; complexity depends on branching factor.'\n        warnings.append('Recursion detected: static analysis cannot determine exact depth/branching.')\n    elif max_loop_depth > 0:\n        if has_logarithmic and max_loop_depth == 1:\n            time_comp = 'O(log n)'\n            explanation = 'Single loop with logarithmic step detected.'\n        elif max_loop_depth == 1:\n            time_comp = 'O(n)'\n            explanation = 'Single level of iteration detected.'\n        elif max_loop_depth == 2:\n            time_comp = 'O(n^2)'\n            explanation = 'Nested loops (depth 2) detected.'\n        else:\n            time_comp = f'O(n^{max_loop_depth})'\n            explanation = f'Deeply nested loops (depth {max_loop_depth}) detected.'\n\n    # Determine Space Complexity\n    space_comp = 'O(1)'\n    if has_recursion:\n        space_comp = 'O(n)'\n        explanation += ' Auxiliary space is O(n) due to recursion stack.'\n    elif 'comprehension' in detected or max_loop_depth > 0:\n        space_comp = 'O(n)'\n        explanation += ' Potential linear space usage for data structures.'\n        warnings.append('Space complexity is an estimate based on loop presence.')\n\n    return {\n        'is_valid_syntax': True,\n        'detected_constructs': list(set(detected)),\n        'time_complexity': time_comp,\n        'space_complexity': space_comp,\n        'explanation': explanation,\n        'warnings': warnings\n    }"
+      },
+      "skill_md": "# Python Complexity Analyzer\n\nAnalyzes Python code snippets to estimate time and space complexity and detect syntax errors.\n\n## Input\n- `code` (string): The Python source code to analyze.\n\n## Output\n- `is_valid_syntax` (boolean): Whether the code passed basic heuristic syntax checks.\n- `detected_constructs` (list): List of detected features (e.g., 'loop', 'recursion', 'comprehension').\n- `time_complexity` (string): Big O notation for time complexity.\n- `space_complexity` (string): Big O notation for space complexity.\n- `explanation` (string): Reasoning behind the complexity analysis.\n- `warnings` (list): List of warnings or error types detected.",
+      "code": "import ast\n\ndef execute(inputs: dict) -> dict:\n    code = inputs.get('code', '')\n    if not code or not isinstance(code, str) or not code.strip():\n        return {\n            'is_valid_syntax': False,\n            'detected_constructs': [],\n            'time_complexity': 'O(1)',\n            'space_complexity': 'O(1)',\n            'explanation': 'No code provided for analysis.',\n            'warnings': ['Empty input']\n        }\n\n    # 1. Parse AST\n    try:\n        tree = ast.parse(code)\n    except SyntaxError as se:\n        return {\n            'is_valid_syntax': False,\n            'detected_constructs': [],\n            'time_complexity': 'N/A',\n            'space_complexity': 'N/A',\n            'explanation': f'Code contains syntax errors: {se}',\n            'warnings': [f'SyntaxError: {se.msg}']\n        }\n\n    detected = []\n    \n    # 2. Check for recursion and branching\n    recursive_calls = {}\n    functions = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]\n    for f in functions:\n        fname = f.name\n        call_count = 0\n        for node in ast.walk(f):\n            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == fname:\n                call_count += 1\n        if call_count > 0:\n            recursive_calls[fname] = call_count\n            detected.append('recursion')\n\n    # 3. Detect Loop Nesting\n    def get_max_loop_depth(node, current_depth=0):\n        max_d = current_depth\n        for child in ast.iter_child_nodes(node):\n            if isinstance(child, (ast.For, ast.While)):\n                detected.append('loop')\n                sub_d = get_max_loop_depth(child, current_depth + 1)\n                max_d = max(max_d, sub_d)\n            else:\n                sub_d = get_max_loop_depth(child, current_depth)\n                max_d = max(max_d, sub_d)\n        return max_d\n\n    max_loop_depth = get_max_loop_depth(tree)\n\n    # 4. Detect Comprehensions\n    comprehensions = [n for n in ast.walk(tree) if isinstance(n, (ast.ListComp, ast.DictComp, ast.SetComp))]\n    if comprehensions:\n        detected.append('comprehension')\n\n    # 5. Check for Logarithmic stepping e.g. n //= 2\n    has_logarithmic = False\n    for node in ast.walk(tree):\n        if isinstance(node, ast.AugAssign) and isinstance(node.op, (ast.FloorDiv, ast.RShift)):\n            has_logarithmic = True\n            detected.append('logarithmic_step')\n\n    # 6. Check for Memory Allocation (Auxiliary Space)\n    has_memory_allocation = False\n    if comprehensions:\n        has_memory_allocation = True\n    for node in ast.walk(tree):\n        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):\n            if node.func.attr in ('append', 'extend', 'add', 'insert'):\n                has_memory_allocation = True\n\n    # 7. Time Complexity Determination\n    warnings = []\n    time_comp = 'O(1)'\n    explanation = 'Constant operations.'\n    \n    if recursive_calls:\n        # Check branching factor\n        max_branching = max(recursive_calls.values())\n        if max_branching > 1:\n            time_comp = 'O(2^n)'\n            explanation = f'Multiple recursive calls ({max_branching}) create exponential execution tree.'\n        else:\n            time_comp = 'O(n)'\n            explanation = 'Single recursive call per frame produces linear time.'\n    elif max_loop_depth > 0:\n        if has_logarithmic and max_loop_depth == 1:\n            time_comp = 'O(log n)'\n            explanation = 'Single loop dividing problem space by constant factor.'\n        elif max_loop_depth == 1:\n            time_comp = 'O(n)'\n            explanation = 'Single loop of linear iteration.'\n        elif max_loop_depth == 2:\n            time_comp = 'O(n^2)'\n            explanation = 'Two nested loops produce quadratic time.'\n        else:\n            time_comp = f'O(n^{max_loop_depth})'\n            explanation = f'Nested loops with depth {max_loop_depth}.'\n\n    # 8. Space Complexity Determination (Auxiliary space vs stack)\n    if recursive_calls:\n        space_comp = 'O(n)'\n        explanation += ' Auxiliary stack space is O(n) due to recursion depth.'\n    elif has_memory_allocation and max_loop_depth > 0:\n        space_comp = 'O(n)'\n        explanation += ' Auxiliary space O(n) from data structure allocations inside iteration.'\n    else:\n        # Constant extra memory\n        space_comp = 'O(1)'\n        explanation += ' Constant auxiliary space O(1) used for simple scalar variables.'\n\n    return {\n        'is_valid_syntax': True,\n        'detected_constructs': list(set(detected)),\n        'time_complexity': time_comp,\n        'space_complexity': space_comp,\n        'explanation': explanation,\n        'warnings': warnings\n    }\n",
+      "created_at": 1792764833.802885,
+      "latest_run": {
+        "run_id": "run_f993b43c",
+        "skill_id": "skill_4d0f37f6",
+        "version": "1.0.2",
+        "timestamp": 1792767673.9715414,
+        "status": "passed",
+        "passed_count": 5,
+        "failed_count": 0,
+        "total_tests": 5,
+        "pass_rate": 100.0,
+        "test_results": [
+          {
+            "test_id": "2876d6f3",
+            "test_name": "Standard Linear Complexity",
+            "passed": true,
+            "actual_output": {
+              "is_valid_syntax": true,
+              "detected_constructs": [
+                "loop"
+              ],
+              "time_complexity": "O(n)",
+              "space_complexity": "O(1)",
+              "explanation": "Single loop of linear iteration. Constant auxiliary space O(1) used for simple scalar variables.",
+              "warnings": []
+            },
+            "error_message": null,
+            "execution_time_ms": 6.477300077676773,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": true,
+                "target_field": "is_valid_syntax",
+                "passed": true,
+                "message": "Expected True, got True",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "loop",
+                "target_field": "detected_constructs",
+                "passed": true,
+                "message": "Found exact item 'loop' in list",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "O(n)",
+                "target_field": "time_complexity",
+                "passed": true,
+                "message": "Expected O(n), got O(n)",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "not_empty",
+                "expected": null,
+                "target_field": "explanation",
+                "passed": true,
+                "message": "Checked string is non-empty (length: 96)",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "3b9be463",
+            "test_name": "Nested Loop Quadratic Complexity",
+            "passed": true,
+            "actual_output": {
+              "is_valid_syntax": true,
+              "detected_constructs": [
+                "loop"
+              ],
+              "time_complexity": "O(n^2)",
+              "space_complexity": "O(1)",
+              "explanation": "Two nested loops produce quadratic time. Constant auxiliary space O(1) used for simple scalar variables.",
+              "warnings": []
+            },
+            "error_message": null,
+            "execution_time_ms": 9.618500247597694,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": true,
+                "target_field": "is_valid_syntax",
+                "passed": true,
+                "message": "Expected True, got True",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "O(n^2)",
+                "target_field": "time_complexity",
+                "passed": true,
+                "message": "Expected O(n^2), got O(n^2)",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "Nested loops",
+                "target_field": "explanation",
+                "passed": true,
+                "message": "Checked substring 'Nested loops' in text (found: True)",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "646e6220",
+            "test_name": "Invalid Python Syntax",
+            "passed": true,
+            "actual_output": {
+              "is_valid_syntax": false,
+              "detected_constructs": [],
+              "time_complexity": "N/A",
+              "space_complexity": "N/A",
+              "explanation": "Code contains syntax errors: expected ':' (<unknown>, line 2)",
+              "warnings": [
+                "SyntaxError: expected ':'"
+              ]
+            },
+            "error_message": null,
+            "execution_time_ms": 5.679199937731028,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": false,
+                "target_field": "is_valid_syntax",
+                "passed": true,
+                "message": "Expected False, got False",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "N/A",
+                "target_field": "time_complexity",
+                "passed": true,
+                "message": "Expected N/A, got N/A",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "SyntaxError",
+                "target_field": "warnings",
+                "passed": true,
+                "message": "Found substring 'SyntaxError' inside list item 'SyntaxError: expected ':''",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "913b8ee3",
+            "test_name": "Recursive Function Analysis",
+            "passed": true,
+            "actual_output": {
+              "is_valid_syntax": true,
+              "detected_constructs": [
+                "recursion"
+              ],
+              "time_complexity": "O(n)",
+              "space_complexity": "O(n)",
+              "explanation": "Single recursive call per frame produces linear time. Auxiliary stack space is O(n) due to recursion depth.",
+              "warnings": []
+            },
+            "error_message": null,
+            "execution_time_ms": 9.128599893301725,
+            "assertion_results": [
+              {
+                "assertion_type": "contains",
+                "expected": "recursion",
+                "target_field": "detected_constructs",
+                "passed": true,
+                "message": "Found exact item 'recursion' in list",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "O(n)",
+                "target_field": "space_complexity",
+                "passed": true,
+                "message": "Expected O(n), got O(n)",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "regex",
+                "expected": "O\\(n\\)|O\\(2\\^n\\)|O\\(n!\\)",
+                "target_field": "time_complexity",
+                "passed": true,
+                "message": "Regex /O\\(n\\)|O\\(2\\^n\\)|O\\(n!\\)/ match on output",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "abd278ef",
+            "test_name": "Empty Input Handling",
+            "passed": true,
+            "actual_output": {
+              "is_valid_syntax": false,
+              "detected_constructs": [],
+              "time_complexity": "O(1)",
+              "space_complexity": "O(1)",
+              "explanation": "No code provided for analysis.",
+              "warnings": [
+                "Empty input"
+              ]
+            },
+            "error_message": null,
+            "execution_time_ms": 8.303700014948845,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": false,
+                "target_field": "is_valid_syntax",
+                "passed": true,
+                "message": "Expected False, got False",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "O(1)",
+                "target_field": "time_complexity",
+                "passed": true,
+                "message": "Expected O(1), got O(1)",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "Empty input",
+                "target_field": "warnings",
+                "passed": true,
+                "message": "Found exact item 'Empty input' in list",
+                "is_evaluator_error": false
+              }
+            ]
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_4d0f37f6' (version 1.0.2) with 5 tests.",
+          "[+] Test 'Standard Linear Complexity' PASSED in 6.5ms",
+          "[+] Test 'Nested Loop Quadratic Complexity' PASSED in 9.6ms",
+          "[+] Test 'Invalid Python Syntax' PASSED in 5.7ms",
+          "[+] Test 'Recursive Function Analysis' PASSED in 9.1ms",
+          "[+] Test 'Empty Input Handling' PASSED in 8.3ms"
+        ]
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "id": "2876d6f3",
+      "name": "Standard Linear Complexity",
+      "description": "Validates that a single for-loop is correctly identified as O(n) time complexity.",
+      "input_data": {
+        "code": "def find_max(arr):\n    max_val = arr[0]\n    for x in arr:\n        if x > max_val:\n            max_val = x\n    return max_val"
+      },
+      "expected_behavior": "The analyzer should detect a loop and return O(n) time complexity.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": true,
+          "target_field": "is_valid_syntax"
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "loop",
+          "target_field": "detected_constructs"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "O(n)",
+          "target_field": "time_complexity"
+        },
+        {
+          "assertion_type": "not_empty",
+          "expected": null,
+          "target_field": "explanation"
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "3b9be463",
+      "name": "Nested Loop Quadratic Complexity",
+      "description": "Validates that nested loops are correctly identified as O(n^2).",
+      "input_data": {
+        "code": "def bubble_sort(arr):\n    n = len(arr)\n    for i in range(n):\n        for j in range(0, n-i-1):\n            if arr[j] > arr[j+1]:\n                arr[j], arr[j+1] = arr[j+1], arr[j]"
+      },
+      "expected_behavior": "The analyzer should detect nested loops and return O(n^2) time complexity.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": true,
+          "target_field": "is_valid_syntax"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "O(n^2)",
+          "target_field": "time_complexity"
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "Nested loops",
+          "target_field": "explanation"
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "646e6220",
+      "name": "Invalid Python Syntax",
+      "description": "Ensures the tool handles syntax errors gracefully without crashing.",
+      "input_data": {
+        "code": "def broken_func():\n    for i in range(10)\n        print(i"
+      },
+      "expected_behavior": "The analyzer should return is_valid_syntax: false and N/A for complexities.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": false,
+          "target_field": "is_valid_syntax"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "N/A",
+          "target_field": "time_complexity"
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "SyntaxError",
+          "target_field": "warnings"
+        }
+      ],
+      "is_edge_case": true
+    },
+    {
+      "id": "913b8ee3",
+      "name": "Recursive Function Analysis",
+      "description": "Validates detection of recursion and its impact on time and space complexity.",
+      "input_data": {
+        "code": "def factorial(n):\n    if n == 0:\n        return 1\n    return n * factorial(n-1)"
+      },
+      "expected_behavior": "The analyzer should detect recursion and estimate O(n) space for the call stack.",
+      "assertions": [
+        {
+          "assertion_type": "contains",
+          "expected": "recursion",
+          "target_field": "detected_constructs"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "O(n)",
+          "target_field": "space_complexity"
+        },
+        {
+          "assertion_type": "regex",
+          "expected": "O\\(n\\)|O\\(2\\^n\\)|O\\(n!\\)",
+          "target_field": "time_complexity"
+        }
+      ],
+      "is_edge_case": true
+    },
+    {
+      "id": "abd278ef",
+      "name": "Empty Input Handling",
+      "description": "Validates that empty strings or null inputs are handled gracefully.",
+      "input_data": {
+        "code": ""
+      },
+      "expected_behavior": "The analyzer should return a valid response indicating no code was provided.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": false,
+          "target_field": "is_valid_syntax"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "O(1)",
+          "target_field": "time_complexity"
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "Empty input",
+          "target_field": "warnings"
+        }
+      ],
+      "is_edge_case": true
+    }
+  ],
+  "runs": [
+    {
+      "run_id": "run_cce38b4c",
+      "skill_id": "skill_4d0f37f6",
+      "version": "1.0.0",
+      "timestamp": 1792764795.754925,
+      "status": "failed",
+      "passed_count": 0,
+      "failed_count": 5,
+      "total_tests": 5,
+      "pass_rate": 0.0,
+      "test_results": [
+        {
+          "test_id": "2876d6f3",
+          "test_name": "Standard Linear Complexity",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 9.22439992427826,
+          "assertion_results": []
+        },
+        {
+          "test_id": "3b9be463",
+          "test_name": "Nested Loop Quadratic Complexity",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 1.9402997568249702,
+          "assertion_results": []
+        },
+        {
+          "test_id": "646e6220",
+          "test_name": "Invalid Python Syntax",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 1.7957999370992184,
+          "assertion_results": []
+        },
+        {
+          "test_id": "913b8ee3",
+          "test_name": "Recursive Function Analysis",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 1.657600048929453,
+          "assertion_results": []
+        },
+        {
+          "test_id": "abd278ef",
+          "test_name": "Empty Input Handling",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 1.6822000034153461,
+          "assertion_results": []
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_4d0f37f6' (version 1.0.0) with 5 tests.",
+        "[-] Test 'Standard Linear Complexity' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Nested Loop Quadratic Complexity' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Invalid Python Syntax' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Recursive Function Analysis' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Empty Input Handling' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted."
+      ]
+    },
+    {
+      "run_id": "run_8e85d562",
+      "skill_id": "skill_4d0f37f6",
+      "version": "1.0.1",
+      "timestamp": 1792764807.3124208,
+      "status": "failed",
+      "passed_count": 3,
+      "failed_count": 2,
+      "total_tests": 5,
+      "pass_rate": 60.0,
+      "test_results": [
+        {
+          "test_id": "2876d6f3",
+          "test_name": "Standard Linear Complexity",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "detected_constructs": [
+              "loop"
+            ],
+            "time_complexity": "O(n)",
+            "space_complexity": "O(n)",
+            "explanation": "Single level of iteration detected. Potential linear space usage for data structures.",
+            "warnings": [
+              "Space complexity is an estimate based on loop presence."
+            ]
+          },
+          "error_message": null,
+          "execution_time_ms": 9.82950022444129,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "loop",
+              "target_field": "detected_constructs",
+              "passed": true,
+              "message": "Checked if list contains loop"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "O(n)",
+              "target_field": "time_complexity",
+              "passed": true,
+              "message": "Expected O(n), got O(n)"
+            },
+            {
+              "assertion_type": "not_empty",
+              "expected": null,
+              "target_field": "explanation",
+              "passed": true,
+              "message": "Checked output is not empty (length/truthiness: True)"
+            }
+          ]
+        },
+        {
+          "test_id": "3b9be463",
+          "test_name": "Nested Loop Quadratic Complexity",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "detected_constructs": [
+              "loop"
+            ],
+            "time_complexity": "O(n^2)",
+            "space_complexity": "O(n)",
+            "explanation": "Nested loops (depth 2) detected. Potential linear space usage for data structures.",
+            "warnings": [
+              "Space complexity is an estimate based on loop presence."
+            ]
+          },
+          "error_message": null,
+          "execution_time_ms": 6.5009999088943005,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "O(n^2)",
+              "target_field": "time_complexity",
+              "passed": true,
+              "message": "Expected O(n^2), got O(n^2)"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "Nested loops",
+              "target_field": "explanation",
+              "passed": true,
+              "message": "Checked if text contains 'Nested loops'"
+            }
+          ]
+        },
+        {
+          "test_id": "646e6220",
+          "test_name": "Invalid Python Syntax",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": false,
+            "detected_constructs": [],
+            "time_complexity": "N/A",
+            "space_complexity": "N/A",
+            "explanation": "Code contains syntax errors.",
+            "warnings": [
+              "Possible missing colon in control structure",
+              "Unbalanced parentheses or brackets detected"
+            ]
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 5.825100000947714,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": false,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected False, got False"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "N/A",
+              "target_field": "time_complexity",
+              "passed": true,
+              "message": "Expected N/A, got N/A"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "SyntaxError",
+              "target_field": "warnings",
+              "passed": false,
+              "message": "Checked if list contains SyntaxError"
+            }
+          ]
+        },
+        {
+          "test_id": "913b8ee3",
+          "test_name": "Recursive Function Analysis",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "detected_constructs": [
+              "recursion"
+            ],
+            "time_complexity": "O(2^n) or O(n!)",
+            "space_complexity": "O(n)",
+            "explanation": "Recursive calls detected; complexity depends on branching factor. Auxiliary space is O(n) due to recursion stack.",
+            "warnings": [
+              "Recursion detected: static analysis cannot determine exact depth/branching."
+            ]
+          },
+          "error_message": null,
+          "execution_time_ms": 6.081800442188978,
+          "assertion_results": [
+            {
+              "assertion_type": "contains",
+              "expected": "recursion",
+              "target_field": "detected_constructs",
+              "passed": true,
+              "message": "Checked if list contains recursion"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "O(n)",
+              "target_field": "space_complexity",
+              "passed": true,
+              "message": "Expected O(n), got O(n)"
+            },
+            {
+              "assertion_type": "regex",
+              "expected": "O\\(2\\^n\\)|O\\(n!\\)",
+              "target_field": "time_complexity",
+              "passed": true,
+              "message": "Regex /O\\(2\\^n\\)|O\\(n!\\)/ match on output"
+            }
+          ]
+        },
+        {
+          "test_id": "abd278ef",
+          "test_name": "Empty Input Handling",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": false,
+            "detected_constructs": [],
+            "time_complexity": "O(1)",
+            "space_complexity": "O(1)",
+            "explanation": "No code provided for analysis.",
+            "warnings": [
+              "Empty input provided"
+            ]
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 5.7181003503501415,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": false,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected False, got False"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "O(1)",
+              "target_field": "time_complexity",
+              "passed": true,
+              "message": "Expected O(1), got O(1)"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "Empty input",
+              "target_field": "warnings",
+              "passed": false,
+              "message": "Checked if list contains Empty input"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_4d0f37f6' (version 1.0.1) with 5 tests.",
+        "[+] Test 'Standard Linear Complexity' PASSED in 9.8ms",
+        "[+] Test 'Nested Loop Quadratic Complexity' PASSED in 6.5ms",
+        "[-] Test 'Invalid Python Syntax' FAILED assertions: ['Checked if list contains SyntaxError']",
+        "[+] Test 'Recursive Function Analysis' PASSED in 6.1ms",
+        "[-] Test 'Empty Input Handling' FAILED assertions: ['Checked if list contains Empty input']"
+      ]
+    },
+    {
+      "run_id": "run_1e9c5956",
+      "skill_id": "skill_4d0f37f6",
+      "version": "1.0.2",
+      "timestamp": 1792764833.8356295,
+      "status": "failed",
+      "passed_count": 4,
+      "failed_count": 1,
+      "total_tests": 5,
+      "pass_rate": 80.0,
+      "test_results": [
+        {
+          "test_id": "2876d6f3",
+          "test_name": "Standard Linear Complexity",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "detected_constructs": [
+              "loop"
+            ],
+            "time_complexity": "O(n)",
+            "space_complexity": "O(n)",
+            "explanation": "Single level of iteration detected. Potential linear space usage for data structures.",
+            "warnings": [
+              "Space complexity is an estimate based on loop presence."
+            ]
+          },
+          "error_message": null,
+          "execution_time_ms": 8.201699703931808,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "loop",
+              "target_field": "detected_constructs",
+              "passed": true,
+              "message": "Checked if list contains loop"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "O(n)",
+              "target_field": "time_complexity",
+              "passed": true,
+              "message": "Expected O(n), got O(n)"
+            },
+            {
+              "assertion_type": "not_empty",
+              "expected": null,
+              "target_field": "explanation",
+              "passed": true,
+              "message": "Checked output is not empty (length/truthiness: True)"
+            }
+          ]
+        },
+        {
+          "test_id": "3b9be463",
+          "test_name": "Nested Loop Quadratic Complexity",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "detected_constructs": [
+              "loop"
+            ],
+            "time_complexity": "O(n^2)",
+            "space_complexity": "O(n)",
+            "explanation": "Nested loops (depth 2) detected. Potential linear space usage for data structures.",
+            "warnings": [
+              "Space complexity is an estimate based on loop presence."
+            ]
+          },
+          "error_message": null,
+          "execution_time_ms": 6.268699653446674,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "O(n^2)",
+              "target_field": "time_complexity",
+              "passed": true,
+              "message": "Expected O(n^2), got O(n^2)"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "Nested loops",
+              "target_field": "explanation",
+              "passed": true,
+              "message": "Checked if text contains 'Nested loops'"
+            }
+          ]
+        },
+        {
+          "test_id": "646e6220",
+          "test_name": "Invalid Python Syntax",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": false,
+            "detected_constructs": [],
+            "time_complexity": "N/A",
+            "space_complexity": "N/A",
+            "explanation": "Code contains syntax errors.",
+            "warnings": [
+              "SyntaxError: Possible missing colon in control structure",
+              "SyntaxError: Unbalanced parentheses or brackets detected"
+            ]
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 5.769900046288967,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": false,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected False, got False"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "N/A",
+              "target_field": "time_complexity",
+              "passed": true,
+              "message": "Expected N/A, got N/A"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "SyntaxError",
+              "target_field": "warnings",
+              "passed": false,
+              "message": "Checked if list contains SyntaxError"
+            }
+          ]
+        },
+        {
+          "test_id": "913b8ee3",
+          "test_name": "Recursive Function Analysis",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "detected_constructs": [
+              "recursion"
+            ],
+            "time_complexity": "O(2^n) or O(n!)",
+            "space_complexity": "O(n)",
+            "explanation": "Recursive calls detected; complexity depends on branching factor. Auxiliary space is O(n) due to recursion stack.",
+            "warnings": [
+              "Recursion detected: static analysis cannot determine exact depth/branching."
+            ]
+          },
+          "error_message": null,
+          "execution_time_ms": 5.728200078010559,
+          "assertion_results": [
+            {
+              "assertion_type": "contains",
+              "expected": "recursion",
+              "target_field": "detected_constructs",
+              "passed": true,
+              "message": "Checked if list contains recursion"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "O(n)",
+              "target_field": "space_complexity",
+              "passed": true,
+              "message": "Expected O(n), got O(n)"
+            },
+            {
+              "assertion_type": "regex",
+              "expected": "O\\(2\\^n\\)|O\\(n!\\)",
+              "target_field": "time_complexity",
+              "passed": true,
+              "message": "Regex /O\\(2\\^n\\)|O\\(n!\\)/ match on output"
+            }
+          ]
+        },
+        {
+          "test_id": "abd278ef",
+          "test_name": "Empty Input Handling",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": false,
+            "detected_constructs": [],
+            "time_complexity": "O(1)",
+            "space_complexity": "O(1)",
+            "explanation": "No code provided for analysis.",
+            "warnings": [
+              "Empty input"
+            ]
+          },
+          "error_message": null,
+          "execution_time_ms": 5.590599961578846,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": false,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected False, got False"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "O(1)",
+              "target_field": "time_complexity",
+              "passed": true,
+              "message": "Expected O(1), got O(1)"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "Empty input",
+              "target_field": "warnings",
+              "passed": true,
+              "message": "Checked if list contains Empty input"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_4d0f37f6' (version 1.0.2) with 5 tests.",
+        "[+] Test 'Standard Linear Complexity' PASSED in 8.2ms",
+        "[+] Test 'Nested Loop Quadratic Complexity' PASSED in 6.3ms",
+        "[-] Test 'Invalid Python Syntax' FAILED assertions: ['Checked if list contains SyntaxError']",
+        "[+] Test 'Recursive Function Analysis' PASSED in 5.7ms",
+        "[+] Test 'Empty Input Handling' PASSED in 5.6ms"
+      ]
+    }
+  ],
+  "improvements": [
+    {
+      "iteration": 1,
+      "previous_version": "1.0.0",
+      "new_version": "1.0.1",
+      "failure_analysis": "The primary cause of failure across all test cases is a security restriction: the 'ast' module is not permitted in the allowed libraries list. The current implementation relies entirely on 'ast' for parsing and analyzing Python code. To resolve this, the logic must be rewritten using regular expressions (re) and string manipulation to detect loops, recursion, and syntax errors, as 're' is an allowed library.",
+      "changes_made": "1. Removed all imports and usage of the 'ast' module.\n2. Implemented a regex-based approach to detect loops ('for', 'while'), list comprehensions, and recursive function calls.\n3. Added a basic syntax check using regex to identify common missing colons or unbalanced parentheses (though full syntax validation is limited without a parser).\n4. Implemented a nesting depth counter for loops by tracking indentation levels or nested keywords.\n5. Maintained the same output schema to ensure compatibility with existing test expectations.",
+      "before_pass_rate": 0.0,
+      "after_pass_rate": 60.0,
+      "improved": true,
+      "regression_detected": false,
+      "decision": "accepted",
+      "decision_reason": "ACCEPTED: Verified improvement from 0.0% to 60.0% with 0 regressions. Fixed 3 test(s): Standard Linear Complexity, Nested Loop Quadratic Complexity, Recursive Function Analysis.",
+      "fixed_tests": [
+        "Standard Linear Complexity",
+        "Nested Loop Quadratic Complexity",
+        "Recursive Function Analysis"
+      ],
+      "regressed_tests": [],
+      "remaining_issues": [
+        "Invalid Python Syntax",
+        "Empty Input Handling"
+      ],
+      "timestamp": 1792764807.3124208
+    },
+    {
+      "iteration": 2,
+      "previous_version": "1.0.1",
+      "new_version": "1.0.2",
+      "failure_analysis": "The failures are caused by strict assertion requirements on the 'warnings' list. 1) In the 'Invalid Python Syntax' test, the test expects the string 'SyntaxError' to be present in the warnings list, but the current code provides descriptive phrases like 'Possible missing colon...'. 2) In the 'Empty Input Handling' test, the test expects the string 'Empty input' to be present, but the current code provides 'Empty input provided'. The logic is correct, but the output strings do not match the expected test tokens.",
+      "changes_made": "Updated the warning strings to exactly match the expected tokens: changed 'Possible missing colon in control structure' and 'Unbalanced parentheses or brackets detected' to include 'SyntaxError', and changed 'Empty input provided' to 'Empty input'.",
+      "before_pass_rate": 60.0,
+      "after_pass_rate": 80.0,
+      "improved": true,
+      "regression_detected": false,
+      "decision": "accepted",
+      "decision_reason": "ACCEPTED: Verified improvement from 60.0% to 80.0% with 0 regressions. Fixed 1 test(s): Empty Input Handling.",
+      "fixed_tests": [
+        "Empty Input Handling"
+      ],
+      "regressed_tests": [],
+      "remaining_issues": [
+        "Invalid Python Syntax"
+      ],
+      "timestamp": 1792764833.8356295
+    }
+  ],
+  "created_at": 1792764795.754925,
+  "updated_at": 1792764795.754925
+}

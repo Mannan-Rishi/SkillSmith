@@ -1,0 +1,1699 @@
+{
+  "id": "skill_52cd5fd2",
+  "name": "PII Masking for Emails and Pakistani Phone Numbers",
+  "category": "Security & Privacy",
+  "current_version": "1.0.3",
+  "versions": {
+    "1.0.0": {
+      "version": "1.0.0",
+      "parent_version": null,
+      "manifest": {
+        "name": "PII Masking for Emails and Pakistani Phone Numbers",
+        "slug": "pii-masking-pk-emails-phones",
+        "description": "Detects and masks email addresses and Pakistani mobile phone numbers within a given text to protect personally identifiable information while preserving the surrounding context.",
+        "category": "Security & Privacy",
+        "version": "1.0.0",
+        "parent_version": null,
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "input_text": "The raw text string containing potential PII to be sanitized (string)"
+        },
+        "outputs": {
+          "sanitized_text": "The text with emails and Pakistani phone numbers replaced by masks (string)",
+          "email_count": "The total number of email addresses masked (integer)",
+          "phone_count": "The total number of Pakistani phone numbers masked (integer)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    \"\"\"\n    Masks email addresses and Pakistani phone numbers in the provided text.\n    \"\"\"\n    input_text = inputs.get('input_text', '')\n    \n    if input_text is None:\n        input_text = ''\n    elif not isinstance(input_text, str):\n        input_text = str(input_text)\n\n    # Regex for Email addresses\n    # Simple but effective pattern for most email formats\n    email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+'\n    \n    # Regex for Pakistani Phone Numbers\n    # Matches +923XXXXXXXXX or 03XXXXXXXXX\n    # \\b ensures we don't match numbers embedded in longer strings of digits\n    phone_pattern = r'(\\+923\\d{9}|03\\d{9})\\b'\n\n    # Find all matches to get counts\n    emails_found = re.findall(email_pattern, input_text)\n    phones_found = re.findall(phone_pattern, input_text)\n    \n    email_count = len(emails_found)\n    phone_count = len(phones_found)\n\n    # Perform replacements\n    # Mask phones first to avoid potential overlap if an email contains a phone-like string\n    sanitized = re.sub(phone_pattern, '[PHONE]', input_text)\n    sanitized = re.sub(email_pattern, '[EMAIL]', sanitized)\n\n    return {\n        \"sanitized_text\": sanitized,\n        \"email_count\": email_count,\n        \"phone_count\": phone_count\n    }"
+      },
+      "skill_md": "---\nname: PII Masking for Emails and Pakistani Phone Numbers\nslug: pii-masking-pk-emails-phones\ncategory: Security & Privacy\nversion: 1.0.0\n---\n\n# PII Masking for Emails and Pakistani Phone Numbers\n\n## Overview\nThis skill detects and masks email addresses and Pakistani mobile phone numbers within a provided text. It is designed to protect personally identifiable information (PII) while preserving the surrounding context and structure of the document.\n\n## Usage\nUse this skill when processing user-generated content, logs, or communications that may contain sensitive contact information specific to the Pakistani region.\n\n### Inputs\n- `input_text` (string): The raw text string containing potential PII to be sanitized.\n\n### Outputs\n- `sanitized_text` (string): The text with emails and Pakistani phone numbers replaced by masks.\n- `email_count` (integer): The total number of email addresses masked.\n- `phone_count` (integer): The total number of Pakistani phone numbers masked.\n\n## Steps\n1. **Email Detection**: Scans the text for patterns matching standard email address formats.\n2. **Phone Detection**: Scans for Pakistani mobile number formats starting with `03` or `+923` followed by 9 digits.\n3. **Masking**: Replaces detected emails with `[EMAIL]` and phone numbers with `[PHONE]`.\n4. **Counting**: Calculates the total number of replacements made for each category.\n\n## Error Handling\n- **Empty Input**: If `input_text` is empty or null, the skill returns an empty string and zero counts.\n- **No PII Found**: If no patterns match, the original text is returned with zero counts.\n- **Invalid Input Type**: If `input_text` is not a string, the skill will attempt to cast it to a string or return an error structure.",
+      "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    \"\"\"\n    Masks email addresses and Pakistani phone numbers in the provided text.\n    \"\"\"\n    input_text = inputs.get('input_text', '')\n    \n    if input_text is None:\n        input_text = ''\n    elif not isinstance(input_text, str):\n        input_text = str(input_text)\n\n    # Regex for Email addresses\n    # Simple but effective pattern for most email formats\n    email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+'\n    \n    # Regex for Pakistani Phone Numbers\n    # Matches +923XXXXXXXXX or 03XXXXXXXXX\n    # \\b ensures we don't match numbers embedded in longer strings of digits\n    phone_pattern = r'(\\+923\\d{9}|03\\d{9})\\b'\n\n    # Find all matches to get counts\n    emails_found = re.findall(email_pattern, input_text)\n    phones_found = re.findall(phone_pattern, input_text)\n    \n    email_count = len(emails_found)\n    phone_count = len(phones_found)\n\n    # Perform replacements\n    # Mask phones first to avoid potential overlap if an email contains a phone-like string\n    sanitized = re.sub(phone_pattern, '[PHONE]', input_text)\n    sanitized = re.sub(email_pattern, '[EMAIL]', sanitized)\n\n    return {\n        \"sanitized_text\": sanitized,\n        \"email_count\": email_count,\n        \"phone_count\": phone_count\n    }",
+      "created_at": 1792760402.2014058,
+      "latest_run": {
+        "run_id": "run_1ce416f9",
+        "skill_id": "skill_52cd5fd2",
+        "version": "1.0.0",
+        "timestamp": 1792760402.2109048,
+        "status": "failed",
+        "passed_count": 0,
+        "failed_count": 4,
+        "total_tests": 4,
+        "pass_rate": 0.0,
+        "test_results": [
+          {
+            "test_id": "0494ecd2",
+            "test_name": "Standard PII Masking",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Execution Error: __import__ not found\nLogs: ",
+            "execution_time_ms": 2.336299978196621,
+            "assertion_results": []
+          },
+          {
+            "test_id": "4044f1a6",
+            "test_name": "No PII Present",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Execution Error: __import__ not found\nLogs: ",
+            "execution_time_ms": 2.269300166517496,
+            "assertion_results": []
+          },
+          {
+            "test_id": "9ba8164d",
+            "test_name": "Empty and Null Input",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Execution Error: __import__ not found\nLogs: ",
+            "execution_time_ms": 1.7229001969099045,
+            "assertion_results": []
+          },
+          {
+            "test_id": "d4d04f21",
+            "test_name": "Adversarial Boundary Numbers",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Execution Error: __import__ not found\nLogs: ",
+            "execution_time_ms": 2.1935002878308296,
+            "assertion_results": []
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_52cd5fd2' (version 1.0.0) with 4 tests.",
+          "[-] Test 'Standard PII Masking' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+          "[-] Test 'No PII Present' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+          "[-] Test 'Empty and Null Input' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+          "[-] Test 'Adversarial Boundary Numbers' FAILED due to execution error: Execution Error: __import__ not found\nLogs: "
+        ]
+      }
+    },
+    "1.0.1": {
+      "version": "1.0.1",
+      "parent_version": "1.0.0",
+      "manifest": {
+        "name": "PII Masking for Emails and Pakistani Phone Numbers",
+        "slug": "pii-masking-pk-emails-phones",
+        "description": "Detects and masks email addresses and Pakistani mobile phone numbers within a given text to protect personally identifiable information while preserving the surrounding context.",
+        "category": "Security & Privacy",
+        "version": "1.0.1",
+        "parent_version": "1.0.0",
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "input_text": "The raw text string containing potential PII to be sanitized (string)"
+        },
+        "outputs": {
+          "sanitized_text": "The text with emails and Pakistani phone numbers replaced by masks (string)",
+          "email_count": "The total number of email addresses masked (integer)",
+          "phone_count": "The total number of Pakistani phone numbers masked (integer)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "def execute(inputs: dict) -> dict:\n    import re\n    \n    input_text = inputs.get('input_text', '')\n    \n    if input_text is None:\n        input_text = ''\n    elif not isinstance(input_text, str):\n        input_text = str(input_text)\n\n    # Regex for Email addresses\n    # Improved to avoid capturing trailing punctuation\n    email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]*[a-zA-Z0-9]'\n    \n    # Regex for Pakistani Phone Numbers\n    # Matches +92 3XX XXXXXXX or 03XX XXXXXXX with optional spaces/hyphens\n    # Pattern: (+92|0) 3 (digit{9})\n    phone_pattern = r'(\\+92\\s?3[\\d\\s-]{9,12}|03[\\d\\s-]{9,12})\\b'\n\n    # To accurately count, we normalize the phone numbers by removing separators\n    # but for the sake of the masking task, we find all matches first\n    emails_found = re.findall(email_pattern, input_text)\n    phones_found = re.findall(phone_pattern, input_text)\n    \n    email_count = len(emails_found)\n    phone_count = len(phones_found)\n\n    # Perform replacements\n    # Mask phones first\n    sanitized = re.sub(phone_pattern, '[PHONE]', input_text)\n    sanitized = re.sub(email_pattern, '[EMAIL]', sanitized)\n\n    return {\n        \"sanitized_text\": sanitized,\n        \"email_count\": int(email_count),\n        \"phone_count\": int(phone_count)\n    }"
+      },
+      "skill_md": "# PII Masker (Pakistan)\n\nMasks email addresses and Pakistani phone numbers in the provided text to ensure privacy.\n\n## Inputs\n- `input_text` (string): The text containing potential PII to be masked.\n\n## Outputs\n- `sanitized_text` (string): The text with PII replaced by `[EMAIL]` and `[PHONE]`.\n- `email_count` (integer): Total number of email addresses masked.\n- `phone_count` (integer): Total number of phone numbers masked.",
+      "code": "def execute(inputs: dict) -> dict:\n    import re\n    \n    input_text = inputs.get('input_text', '')\n    \n    if input_text is None:\n        input_text = ''\n    elif not isinstance(input_text, str):\n        input_text = str(input_text)\n\n    # Regex for Email addresses\n    # Improved to avoid capturing trailing punctuation\n    email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]*[a-zA-Z0-9]'\n    \n    # Regex for Pakistani Phone Numbers\n    # Matches +92 3XX XXXXXXX or 03XX XXXXXXX with optional spaces/hyphens\n    # Pattern: (+92|0) 3 (digit{9})\n    phone_pattern = r'(\\+92\\s?3[\\d\\s-]{9,12}|03[\\d\\s-]{9,12})\\b'\n\n    # To accurately count, we normalize the phone numbers by removing separators\n    # but for the sake of the masking task, we find all matches first\n    emails_found = re.findall(email_pattern, input_text)\n    phones_found = re.findall(phone_pattern, input_text)\n    \n    email_count = len(emails_found)\n    phone_count = len(phones_found)\n\n    # Perform replacements\n    # Mask phones first\n    sanitized = re.sub(phone_pattern, '[PHONE]', input_text)\n    sanitized = re.sub(email_pattern, '[EMAIL]', sanitized)\n\n    return {\n        \"sanitized_text\": sanitized,\n        \"email_count\": int(email_count),\n        \"phone_count\": int(phone_count)\n    }",
+      "created_at": 1792760408.9622743,
+      "latest_run": {
+        "run_id": "run_09bbd4e4",
+        "skill_id": "skill_52cd5fd2",
+        "version": "1.0.1",
+        "timestamp": 1792760480.0910094,
+        "status": "failed",
+        "passed_count": 0,
+        "failed_count": 4,
+        "total_tests": 4,
+        "pass_rate": 0.0,
+        "test_results": [
+          {
+            "test_id": "0494ecd2",
+            "test_name": "Standard PII Masking",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Execution Error: __import__ not found\nLogs: ",
+            "execution_time_ms": 2.068100031465292,
+            "assertion_results": []
+          },
+          {
+            "test_id": "4044f1a6",
+            "test_name": "No PII Present",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Execution Error: __import__ not found\nLogs: ",
+            "execution_time_ms": 2.171499654650688,
+            "assertion_results": []
+          },
+          {
+            "test_id": "9ba8164d",
+            "test_name": "Empty and Null Input",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Execution Error: __import__ not found\nLogs: ",
+            "execution_time_ms": 2.1195998415350914,
+            "assertion_results": []
+          },
+          {
+            "test_id": "d4d04f21",
+            "test_name": "Adversarial Boundary Numbers",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Execution Error: __import__ not found\nLogs: ",
+            "execution_time_ms": 2.2788001224398613,
+            "assertion_results": []
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_52cd5fd2' (version 1.0.1) with 4 tests.",
+          "[-] Test 'Standard PII Masking' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+          "[-] Test 'No PII Present' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+          "[-] Test 'Empty and Null Input' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+          "[-] Test 'Adversarial Boundary Numbers' FAILED due to execution error: Execution Error: __import__ not found\nLogs: "
+        ]
+      }
+    },
+    "1.0.2": {
+      "version": "1.0.2",
+      "parent_version": "1.0.1",
+      "manifest": {
+        "name": "PII Masking for Emails and Pakistani Phone Numbers",
+        "slug": "pii-masking-pk-emails-phones",
+        "description": "Detects and masks email addresses and Pakistani mobile phone numbers within a given text to protect personally identifiable information while preserving the surrounding context.",
+        "category": "Security & Privacy",
+        "version": "1.0.2",
+        "parent_version": "1.0.1",
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "input_text": "The raw text string containing potential PII to be sanitized (string)"
+        },
+        "outputs": {
+          "sanitized_text": "The text with emails and Pakistani phone numbers replaced by masks (string)",
+          "email_count": "The total number of email addresses masked (integer)",
+          "phone_count": "The total number of Pakistani phone numbers masked (integer)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    input_text = inputs.get('input_text', '')\n    \n    if input_text is None:\n        input_text = ''\n    elif not isinstance(input_text, str):\n        input_text = str(input_text)\n\n    # Regex for Email addresses\n    email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]*[a-zA-Z0-9]'\n    \n    # Regex for Pakistani Mobile Phone Numbers\n    # Must start with +92 3 or 03, followed by exactly 7 digits.\n    # We use lookarounds to ensure we don't match part of a longer number.\n    # Pattern explanation:\n    # (?<!\\d) : Not preceded by a digit\n    # (?:\\+92\\s?3|03) : Prefix +92 3 or 03\n    # (?:[\\s-]?\\d){7} : Exactly 7 digits, each optionally preceded by space or hyphen\n    # (?!\\d) : Not followed by a digit\n    phone_pattern = r'(?<!\\d)(?:\\+92\\s?3|03)(?:[\\s-]?\\d){7}(?!\\d)'\n\n    emails_found = re.findall(email_pattern, input_text)\n    phones_found = re.findall(phone_pattern, input_text)\n    \n    email_count = len(emails_found)\n    phone_count = len(phones_found)\n\n    # Perform replacements\n    # Mask phones first to avoid interference\n    sanitized = re.sub(phone_pattern, '[PHONE]', input_text)\n    sanitized = re.sub(email_pattern, '[EMAIL]', sanitized)\n\n    return {\n        \"sanitized_text\": sanitized,\n        \"email_count\": int(email_count),\n        \"phone_count\": int(phone_count)\n    }"
+      },
+      "skill_md": "# PII Masker (Pakistan)\n\nThis skill identifies and masks Pakistani mobile phone numbers and email addresses from a given text.\n\n## Input\n- `input_text` (string): The text to be sanitized.\n\n## Output\n- `sanitized_text` (string): Text with PII replaced by `[PHONE]` and `[EMAIL]`.\n- `email_count` (integer): Total number of emails found.\n- `phone_count` (integer): Total number of Pakistani mobile numbers found.\n\n## Logic\n- **Emails**: Matches standard email formats.\n- **Phones**: Matches Pakistani mobile numbers starting with `03` or `+923` followed by 7 digits. Landlines (e.g., starting with 021, 042) are ignored.",
+      "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    input_text = inputs.get('input_text', '')\n    \n    if input_text is None:\n        input_text = ''\n    elif not isinstance(input_text, str):\n        input_text = str(input_text)\n\n    # Regex for Email addresses\n    email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]*[a-zA-Z0-9]'\n    \n    # Regex for Pakistani Mobile Phone Numbers\n    # Must start with +92 3 or 03, followed by exactly 7 digits.\n    # We use lookarounds to ensure we don't match part of a longer number.\n    # Pattern explanation:\n    # (?<!\\d) : Not preceded by a digit\n    # (?:\\+92\\s?3|03) : Prefix +92 3 or 03\n    # (?:[\\s-]?\\d){7} : Exactly 7 digits, each optionally preceded by space or hyphen\n    # (?!\\d) : Not followed by a digit\n    phone_pattern = r'(?<!\\d)(?:\\+92\\s?3|03)(?:[\\s-]?\\d){7}(?!\\d)'\n\n    emails_found = re.findall(email_pattern, input_text)\n    phones_found = re.findall(phone_pattern, input_text)\n    \n    email_count = len(emails_found)\n    phone_count = len(phones_found)\n\n    # Perform replacements\n    # Mask phones first to avoid interference\n    sanitized = re.sub(phone_pattern, '[PHONE]', input_text)\n    sanitized = re.sub(email_pattern, '[EMAIL]', sanitized)\n\n    return {\n        \"sanitized_text\": sanitized,\n        \"email_count\": int(email_count),\n        \"phone_count\": int(phone_count)\n    }",
+      "created_at": 1792761664.7958994,
+      "latest_run": {
+        "run_id": "run_bfcb82e6",
+        "skill_id": "skill_52cd5fd2",
+        "version": "1.0.2",
+        "timestamp": 1792763612.4485064,
+        "status": "failed",
+        "passed_count": 4,
+        "failed_count": 1,
+        "total_tests": 5,
+        "pass_rate": 80.0,
+        "test_results": [
+          {
+            "test_id": "0494ecd2",
+            "test_name": "Standard PII Masking",
+            "passed": false,
+            "actual_output": {
+              "sanitized_text": "Contact me at [EMAIL] or call 03001234567. For office, use +923219876543 or [EMAIL]",
+              "email_count": 2,
+              "phone_count": 0
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 3.044999670237303,
+            "assertion_results": [
+              {
+                "assertion_type": "contains",
+                "expected": "[EMAIL]",
+                "target_field": null,
+                "passed": true,
+                "message": "Found substring '[EMAIL]' inside dictionary field 'sanitized_text'"
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "[PHONE]",
+                "target_field": null,
+                "passed": false,
+                "message": "'[PHONE]' not found in dictionary keys or string values"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 2,
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected 2 on dictionary field 'email_count'"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 2,
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected 2 on dictionary field 'email_count'"
+              }
+            ]
+          },
+          {
+            "test_id": "4044f1a6",
+            "test_name": "No PII Present",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "Hello, how are you doing today? The weather is nice in Lahore.",
+              "email_count": 0,
+              "phone_count": 0
+            },
+            "error_message": null,
+            "execution_time_ms": 1.6342001035809517,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "Hello, how are you doing today? The weather is nice in Lahore.",
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected Hello, how are you doing today? The weather is nice in Lahore. on dictionary field 'sanitized_text'"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected 0 on dictionary field 'email_count'"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected 0 on dictionary field 'email_count'"
+              }
+            ]
+          },
+          {
+            "test_id": "9ba8164d",
+            "test_name": "Empty and Null Input",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "",
+              "email_count": 0,
+              "phone_count": 0
+            },
+            "error_message": null,
+            "execution_time_ms": 1.621900126338005,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "",
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected  on dictionary field 'sanitized_text'"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected 0 on dictionary field 'email_count'"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected 0 on dictionary field 'email_count'"
+              }
+            ]
+          },
+          {
+            "test_id": "d4d04f21",
+            "test_name": "Adversarial Boundary Numbers",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline).",
+              "email_count": 0,
+              "phone_count": 0
+            },
+            "error_message": null,
+            "execution_time_ms": 1.8182001076638699,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline).",
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline). on dictionary field 'sanitized_text'"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected 0 on dictionary field 'email_count'"
+              }
+            ]
+          },
+          {
+            "test_id": "fc285d52",
+            "test_name": "Live Corp Email Check",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "Hello [EMAIL] welcome",
+              "email_count": 1,
+              "phone_count": 0
+            },
+            "error_message": null,
+            "execution_time_ms": 1.566300168633461,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": {
+                  "sanitized_text": "Hello [EMAIL] welcome",
+                  "email_count": 1,
+                  "phone_count": 0
+                },
+                "target_field": null,
+                "passed": true,
+                "message": "Expected {'sanitized_text': 'Hello [EMAIL] welcome', 'email_count': 1, 'phone_count': 0}, got {'sanitized_text': 'Hello [EMAIL] welcome', 'email_count': 1, 'phone_count': 0}"
+              }
+            ]
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_52cd5fd2' (version 1.0.2) with 5 tests.",
+          "[-] Test 'Standard PII Masking' FAILED assertions: [\"'[PHONE]' not found in dictionary keys or string values\"]",
+          "[+] Test 'No PII Present' PASSED in 1.6ms",
+          "[+] Test 'Empty and Null Input' PASSED in 1.6ms",
+          "[+] Test 'Adversarial Boundary Numbers' PASSED in 1.8ms",
+          "[+] Test 'Live Corp Email Check' PASSED in 1.6ms"
+        ]
+      }
+    },
+    "1.0.3": {
+      "version": "1.0.3",
+      "parent_version": "1.0.2",
+      "manifest": {
+        "name": "PII Masking for Emails and Pakistani Phone Numbers",
+        "slug": "pii-masking-pk-emails-phones",
+        "description": "Detects and masks email addresses and Pakistani mobile phone numbers within a given text to protect personally identifiable information while preserving the surrounding context.",
+        "category": "Security & Privacy",
+        "version": "1.0.3",
+        "parent_version": "1.0.2",
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "input_text": "The raw text string containing potential PII to be sanitized (string)"
+        },
+        "outputs": {
+          "sanitized_text": "The text with emails and Pakistani phone numbers replaced by masks (string)",
+          "email_count": "The total number of email addresses masked (integer)",
+          "phone_count": "The total number of Pakistani phone numbers masked (integer)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    input_text = inputs.get('input_text', '')\n    \n    if input_text is None:\n        input_text = ''\n    elif not isinstance(input_text, str):\n        input_text = str(input_text)\n\n    # Regex for Email addresses\n    email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]*[a-zA-Z0-9]'\n    \n    # Regex for Pakistani Mobile Phone Numbers\n    # Format: 03XXXXXXXXX or +92 3XXXXXXXXX (Total 11 digits including leading 0)\n    # Prefix: (?<!\\d)(?:\\+92\\s?3|03)\n    # Body: Exactly 9 digits, each optionally preceded by space or hyphen\n    # Boundary: (?!\\d)\n    phone_pattern = r'(?<!\\d)(?:\\+92\\s?3|03)(?:[\\s-]?\\d){9}(?!\\d)'\n\n    emails_found = re.findall(email_pattern, input_text)\n    phones_found = re.findall(phone_pattern, input_text)\n    \n    email_count = len(emails_found)\n    phone_count = len(phones_found)\n\n    # Perform replacements\n    # Mask phones first to avoid interference\n    sanitized = re.sub(phone_pattern, '[PHONE]', input_text)\n    sanitized = re.sub(email_pattern, '[EMAIL]', sanitized)\n\n    return {\n        \"sanitized_text\": sanitized,\n        \"email_count\": int(email_count),\n        \"phone_count\": int(phone_count)\n    }"
+      },
+      "skill_md": "# PII Masking (Pakistani Context)\n\nThis skill identifies and masks Personally Identifiable Information (PII) specifically tailored for Pakistani contexts, focusing on email addresses and Pakistani mobile phone numbers.\n\n## Capabilities\n- **Email Detection**: Identifies standard email formats.\n- **Pakistani Phone Detection**: Identifies mobile numbers starting with `03` or `+92 3` followed by 9 digits.\n- **Text Sanitization**: Replaces detected PII with `[EMAIL]` and `[PHONE]` placeholders.\n- **Counting**: Returns the total count of emails and phone numbers found.\n\n## Input Schema\n- `input_text` (string): The text to be sanitized.\n\n## Output Schema\n- `sanitized_text` (string): The text with PII masked.\n- `email_count` (integer): Number of emails found.\n- `phone_count` (integer): Number of phone numbers found.",
+      "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    input_text = inputs.get('input_text', '')\n    \n    if input_text is None:\n        input_text = ''\n    elif not isinstance(input_text, str):\n        input_text = str(input_text)\n\n    # Regex for Email addresses\n    email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]*[a-zA-Z0-9]'\n    \n    # Regex for Pakistani Mobile Phone Numbers\n    # Format: 03XXXXXXXXX or +92 3XXXXXXXXX (Total 11 digits including leading 0)\n    # Prefix: (?<!\\d)(?:\\+92\\s?3|03)\n    # Body: Exactly 9 digits, each optionally preceded by space or hyphen\n    # Boundary: (?!\\d)\n    phone_pattern = r'(?<!\\d)(?:\\+92\\s?3|03)(?:[\\s-]?\\d){9}(?!\\d)'\n\n    emails_found = re.findall(email_pattern, input_text)\n    phones_found = re.findall(phone_pattern, input_text)\n    \n    email_count = len(emails_found)\n    phone_count = len(phones_found)\n\n    # Perform replacements\n    # Mask phones first to avoid interference\n    sanitized = re.sub(phone_pattern, '[PHONE]', input_text)\n    sanitized = re.sub(email_pattern, '[EMAIL]', sanitized)\n\n    return {\n        \"sanitized_text\": sanitized,\n        \"email_count\": int(email_count),\n        \"phone_count\": int(phone_count)\n    }",
+      "created_at": 1792763616.991471,
+      "latest_run": {
+        "run_id": "run_64e4b126",
+        "skill_id": "skill_52cd5fd2",
+        "version": "1.0.3",
+        "timestamp": 1792763617.0011916,
+        "status": "passed",
+        "passed_count": 5,
+        "failed_count": 0,
+        "total_tests": 5,
+        "pass_rate": 100.0,
+        "test_results": [
+          {
+            "test_id": "0494ecd2",
+            "test_name": "Standard PII Masking",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "Contact me at [EMAIL] or call [PHONE]. For office, use [PHONE] or [EMAIL]",
+              "email_count": 2,
+              "phone_count": 2
+            },
+            "error_message": null,
+            "execution_time_ms": 2.5284001603722572,
+            "assertion_results": [
+              {
+                "assertion_type": "contains",
+                "expected": "[EMAIL]",
+                "target_field": null,
+                "passed": true,
+                "message": "Found substring '[EMAIL]' inside dictionary field 'sanitized_text'"
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "[PHONE]",
+                "target_field": null,
+                "passed": true,
+                "message": "Found substring '[PHONE]' inside dictionary field 'sanitized_text'"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 2,
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected 2 on dictionary field 'email_count'"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 2,
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected 2 on dictionary field 'email_count'"
+              }
+            ]
+          },
+          {
+            "test_id": "4044f1a6",
+            "test_name": "No PII Present",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "Hello, how are you doing today? The weather is nice in Lahore.",
+              "email_count": 0,
+              "phone_count": 0
+            },
+            "error_message": null,
+            "execution_time_ms": 4.166599828749895,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "Hello, how are you doing today? The weather is nice in Lahore.",
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected Hello, how are you doing today? The weather is nice in Lahore. on dictionary field 'sanitized_text'"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected 0 on dictionary field 'email_count'"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected 0 on dictionary field 'email_count'"
+              }
+            ]
+          },
+          {
+            "test_id": "9ba8164d",
+            "test_name": "Empty and Null Input",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "",
+              "email_count": 0,
+              "phone_count": 0
+            },
+            "error_message": null,
+            "execution_time_ms": 0.9357999078929424,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "",
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected  on dictionary field 'sanitized_text'"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected 0 on dictionary field 'email_count'"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected 0 on dictionary field 'email_count'"
+              }
+            ]
+          },
+          {
+            "test_id": "d4d04f21",
+            "test_name": "Adversarial Boundary Numbers",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline).",
+              "email_count": 0,
+              "phone_count": 0
+            },
+            "error_message": null,
+            "execution_time_ms": 0.6782999262213707,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline).",
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline). on dictionary field 'sanitized_text'"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": null,
+                "passed": true,
+                "message": "Matched expected 0 on dictionary field 'email_count'"
+              }
+            ]
+          },
+          {
+            "test_id": "fc285d52",
+            "test_name": "Live Corp Email Check",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "Hello [EMAIL] welcome",
+              "email_count": 1,
+              "phone_count": 0
+            },
+            "error_message": null,
+            "execution_time_ms": 1.2811999768018723,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": {
+                  "sanitized_text": "Hello [EMAIL] welcome",
+                  "email_count": 1,
+                  "phone_count": 0
+                },
+                "target_field": null,
+                "passed": true,
+                "message": "Expected {'sanitized_text': 'Hello [EMAIL] welcome', 'email_count': 1, 'phone_count': 0}, got {'sanitized_text': 'Hello [EMAIL] welcome', 'email_count': 1, 'phone_count': 0}"
+              }
+            ]
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_52cd5fd2' (version 1.0.3) with 5 tests.",
+          "[+] Test 'Standard PII Masking' PASSED in 2.5ms",
+          "[+] Test 'No PII Present' PASSED in 4.2ms",
+          "[+] Test 'Empty and Null Input' PASSED in 0.9ms",
+          "[+] Test 'Adversarial Boundary Numbers' PASSED in 0.7ms",
+          "[+] Test 'Live Corp Email Check' PASSED in 1.3ms"
+        ]
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "id": "0494ecd2",
+      "name": "Standard PII Masking",
+      "description": "Validates that a mix of standard Pakistani phone numbers and emails are correctly masked and counted.",
+      "input_data": {
+        "input_text": "Contact me at ali.khan@gmail.com or call 03001234567. For office, use +923219876543 or info@company.pk"
+      },
+      "expected_behavior": "Both phone formats and both emails should be masked, with counts of 2 for each.",
+      "assertions": [
+        {
+          "assertion_type": "contains",
+          "expected": "[EMAIL]",
+          "target_field": null
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "[PHONE]",
+          "target_field": null
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 2,
+          "target_field": null
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 2,
+          "target_field": null
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "4044f1a6",
+      "name": "No PII Present",
+      "description": "Ensures that text without PII remains unchanged and counts are zero.",
+      "input_data": {
+        "input_text": "Hello, how are you doing today? The weather is nice in Lahore."
+      },
+      "expected_behavior": "The output text should be identical to the input text with zero counts.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": "Hello, how are you doing today? The weather is nice in Lahore.",
+          "target_field": null
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": null
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": null
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "9ba8164d",
+      "name": "Empty and Null Input",
+      "description": "Tests the robustness of the skill when receiving empty strings or null values.",
+      "input_data": {
+        "input_text": ""
+      },
+      "expected_behavior": "Should return an empty string and zero counts without crashing.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": "",
+          "target_field": null
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": null
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": null
+        }
+      ],
+      "is_edge_case": true
+    },
+    {
+      "id": "d4d04f21",
+      "name": "Adversarial Boundary Numbers",
+      "description": "Tests that numbers that look like Pakistani phones but have wrong lengths or prefixes are NOT masked.",
+      "input_data": {
+        "input_text": "Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline)."
+      },
+      "expected_behavior": "None of these should be masked as they do not fit the 03XXXXXXXXX or +923XXXXXXXXX pattern.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": "Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline).",
+          "target_field": null
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": null
+        }
+      ],
+      "is_edge_case": true
+    },
+    {
+      "id": "fc285d52",
+      "name": "Live Corp Email Check",
+      "description": "Validates corporate email domain replacement",
+      "input_data": {
+        "input_text": "Hello john.doe@acme.corp welcome"
+      },
+      "expected_behavior": "Returns expected result for custom inputs",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": {
+            "sanitized_text": "Hello [EMAIL] welcome",
+            "email_count": 1,
+            "phone_count": 0
+          },
+          "target_field": null
+        }
+      ],
+      "is_edge_case": false
+    }
+  ],
+  "runs": [
+    {
+      "run_id": "run_1ce416f9",
+      "skill_id": "skill_52cd5fd2",
+      "version": "1.0.0",
+      "timestamp": 1792760402.2109048,
+      "status": "failed",
+      "passed_count": 0,
+      "failed_count": 4,
+      "total_tests": 4,
+      "pass_rate": 0.0,
+      "test_results": [
+        {
+          "test_id": "0494ecd2",
+          "test_name": "Standard PII Masking",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 2.336299978196621,
+          "assertion_results": []
+        },
+        {
+          "test_id": "4044f1a6",
+          "test_name": "No PII Present",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 2.269300166517496,
+          "assertion_results": []
+        },
+        {
+          "test_id": "9ba8164d",
+          "test_name": "Empty and Null Input",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 1.7229001969099045,
+          "assertion_results": []
+        },
+        {
+          "test_id": "d4d04f21",
+          "test_name": "Adversarial Boundary Numbers",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 2.1935002878308296,
+          "assertion_results": []
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_52cd5fd2' (version 1.0.0) with 4 tests.",
+        "[-] Test 'Standard PII Masking' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+        "[-] Test 'No PII Present' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+        "[-] Test 'Empty and Null Input' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+        "[-] Test 'Adversarial Boundary Numbers' FAILED due to execution error: Execution Error: __import__ not found\nLogs: "
+      ]
+    },
+    {
+      "run_id": "run_46866ee5",
+      "skill_id": "skill_52cd5fd2",
+      "version": "1.0.1",
+      "timestamp": 1792760408.9718177,
+      "status": "failed",
+      "passed_count": 0,
+      "failed_count": 4,
+      "total_tests": 4,
+      "pass_rate": 0.0,
+      "test_results": [
+        {
+          "test_id": "0494ecd2",
+          "test_name": "Standard PII Masking",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 1.6107000410556793,
+          "assertion_results": []
+        },
+        {
+          "test_id": "4044f1a6",
+          "test_name": "No PII Present",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 2.3022000677883625,
+          "assertion_results": []
+        },
+        {
+          "test_id": "9ba8164d",
+          "test_name": "Empty and Null Input",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 2.247400116175413,
+          "assertion_results": []
+        },
+        {
+          "test_id": "d4d04f21",
+          "test_name": "Adversarial Boundary Numbers",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 2.4938001297414303,
+          "assertion_results": []
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_52cd5fd2' (version 1.0.1) with 4 tests.",
+        "[-] Test 'Standard PII Masking' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+        "[-] Test 'No PII Present' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+        "[-] Test 'Empty and Null Input' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+        "[-] Test 'Adversarial Boundary Numbers' FAILED due to execution error: Execution Error: __import__ not found\nLogs: "
+      ]
+    },
+    {
+      "run_id": "run_09bbd4e4",
+      "skill_id": "skill_52cd5fd2",
+      "version": "1.0.1",
+      "timestamp": 1792760480.0910094,
+      "status": "failed",
+      "passed_count": 0,
+      "failed_count": 4,
+      "total_tests": 4,
+      "pass_rate": 0.0,
+      "test_results": [
+        {
+          "test_id": "0494ecd2",
+          "test_name": "Standard PII Masking",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 2.068100031465292,
+          "assertion_results": []
+        },
+        {
+          "test_id": "4044f1a6",
+          "test_name": "No PII Present",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 2.171499654650688,
+          "assertion_results": []
+        },
+        {
+          "test_id": "9ba8164d",
+          "test_name": "Empty and Null Input",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 2.1195998415350914,
+          "assertion_results": []
+        },
+        {
+          "test_id": "d4d04f21",
+          "test_name": "Adversarial Boundary Numbers",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 2.2788001224398613,
+          "assertion_results": []
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_52cd5fd2' (version 1.0.1) with 4 tests.",
+        "[-] Test 'Standard PII Masking' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+        "[-] Test 'No PII Present' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+        "[-] Test 'Empty and Null Input' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+        "[-] Test 'Adversarial Boundary Numbers' FAILED due to execution error: Execution Error: __import__ not found\nLogs: "
+      ]
+    },
+    {
+      "run_id": "run_063a8d8d",
+      "skill_id": "skill_52cd5fd2",
+      "version": "1.0.2",
+      "timestamp": 1792761664.8024487,
+      "status": "failed",
+      "passed_count": 3,
+      "failed_count": 1,
+      "total_tests": 4,
+      "pass_rate": 75.0,
+      "test_results": [
+        {
+          "test_id": "0494ecd2",
+          "test_name": "Standard PII Masking",
+          "passed": false,
+          "actual_output": {
+            "sanitized_text": "Contact me at [EMAIL] or call 03001234567. For office, use +923219876543 or [EMAIL]",
+            "email_count": 2,
+            "phone_count": 0
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 2.328499685972929,
+          "assertion_results": [
+            {
+              "assertion_type": "contains",
+              "expected": "[EMAIL]",
+              "target_field": null,
+              "passed": true,
+              "message": "Found substring '[EMAIL]' inside dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "[PHONE]",
+              "target_field": null,
+              "passed": false,
+              "message": "'[PHONE]' not found in dictionary keys or string values"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 2 on dictionary field 'email_count'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 2 on dictionary field 'email_count'"
+            }
+          ]
+        },
+        {
+          "test_id": "4044f1a6",
+          "test_name": "No PII Present",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Hello, how are you doing today? The weather is nice in Lahore.",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 2.0351996645331383,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Hello, how are you doing today? The weather is nice in Lahore.",
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected Hello, how are you doing today? The weather is nice in Lahore. on dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            }
+          ]
+        },
+        {
+          "test_id": "9ba8164d",
+          "test_name": "Empty and Null Input",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 1.2012999504804611,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "",
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected  on dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            }
+          ]
+        },
+        {
+          "test_id": "d4d04f21",
+          "test_name": "Adversarial Boundary Numbers",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline).",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 0.9981999173760414,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline).",
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline). on dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_52cd5fd2' (version 1.0.2) with 4 tests.",
+        "[-] Test 'Standard PII Masking' FAILED assertions: [\"'[PHONE]' not found in dictionary keys or string values\"]",
+        "[+] Test 'No PII Present' PASSED in 2.0ms",
+        "[+] Test 'Empty and Null Input' PASSED in 1.2ms",
+        "[+] Test 'Adversarial Boundary Numbers' PASSED in 1.0ms"
+      ]
+    },
+    {
+      "run_id": "run_603da0e8",
+      "skill_id": "skill_52cd5fd2",
+      "version": "1.0.2",
+      "timestamp": 1792763596.3198276,
+      "status": "failed",
+      "passed_count": 4,
+      "failed_count": 1,
+      "total_tests": 5,
+      "pass_rate": 80.0,
+      "test_results": [
+        {
+          "test_id": "0494ecd2",
+          "test_name": "Standard PII Masking",
+          "passed": false,
+          "actual_output": {
+            "sanitized_text": "Contact me at [EMAIL] or call 03001234567. For office, use +923219876543 or [EMAIL]",
+            "email_count": 2,
+            "phone_count": 0
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 1.555700320750475,
+          "assertion_results": [
+            {
+              "assertion_type": "contains",
+              "expected": "[EMAIL]",
+              "target_field": null,
+              "passed": true,
+              "message": "Found substring '[EMAIL]' inside dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "[PHONE]",
+              "target_field": null,
+              "passed": false,
+              "message": "'[PHONE]' not found in dictionary keys or string values"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 2 on dictionary field 'email_count'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 2 on dictionary field 'email_count'"
+            }
+          ]
+        },
+        {
+          "test_id": "4044f1a6",
+          "test_name": "No PII Present",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Hello, how are you doing today? The weather is nice in Lahore.",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 1.5054000541567802,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Hello, how are you doing today? The weather is nice in Lahore.",
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected Hello, how are you doing today? The weather is nice in Lahore. on dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            }
+          ]
+        },
+        {
+          "test_id": "9ba8164d",
+          "test_name": "Empty and Null Input",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 0.7449998520314693,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "",
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected  on dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            }
+          ]
+        },
+        {
+          "test_id": "d4d04f21",
+          "test_name": "Adversarial Boundary Numbers",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline).",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 0.9577004238963127,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline).",
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline). on dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            }
+          ]
+        },
+        {
+          "test_id": "fc285d52",
+          "test_name": "Live Corp Email Check",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Hello [EMAIL] welcome",
+            "email_count": 1,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 1.3113999739289284,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": {
+                "sanitized_text": "Hello [EMAIL] welcome",
+                "email_count": 1,
+                "phone_count": 0
+              },
+              "target_field": null,
+              "passed": true,
+              "message": "Expected {'sanitized_text': 'Hello [EMAIL] welcome', 'email_count': 1, 'phone_count': 0}, got {'sanitized_text': 'Hello [EMAIL] welcome', 'email_count': 1, 'phone_count': 0}"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_52cd5fd2' (version 1.0.2) with 5 tests.",
+        "[-] Test 'Standard PII Masking' FAILED assertions: [\"'[PHONE]' not found in dictionary keys or string values\"]",
+        "[+] Test 'No PII Present' PASSED in 1.5ms",
+        "[+] Test 'Empty and Null Input' PASSED in 0.7ms",
+        "[+] Test 'Adversarial Boundary Numbers' PASSED in 1.0ms",
+        "[+] Test 'Live Corp Email Check' PASSED in 1.3ms"
+      ]
+    },
+    {
+      "run_id": "run_bfcb82e6",
+      "skill_id": "skill_52cd5fd2",
+      "version": "1.0.2",
+      "timestamp": 1792763612.4485064,
+      "status": "failed",
+      "passed_count": 4,
+      "failed_count": 1,
+      "total_tests": 5,
+      "pass_rate": 80.0,
+      "test_results": [
+        {
+          "test_id": "0494ecd2",
+          "test_name": "Standard PII Masking",
+          "passed": false,
+          "actual_output": {
+            "sanitized_text": "Contact me at [EMAIL] or call 03001234567. For office, use +923219876543 or [EMAIL]",
+            "email_count": 2,
+            "phone_count": 0
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 3.044999670237303,
+          "assertion_results": [
+            {
+              "assertion_type": "contains",
+              "expected": "[EMAIL]",
+              "target_field": null,
+              "passed": true,
+              "message": "Found substring '[EMAIL]' inside dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "[PHONE]",
+              "target_field": null,
+              "passed": false,
+              "message": "'[PHONE]' not found in dictionary keys or string values"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 2 on dictionary field 'email_count'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 2 on dictionary field 'email_count'"
+            }
+          ]
+        },
+        {
+          "test_id": "4044f1a6",
+          "test_name": "No PII Present",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Hello, how are you doing today? The weather is nice in Lahore.",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 1.6342001035809517,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Hello, how are you doing today? The weather is nice in Lahore.",
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected Hello, how are you doing today? The weather is nice in Lahore. on dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            }
+          ]
+        },
+        {
+          "test_id": "9ba8164d",
+          "test_name": "Empty and Null Input",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 1.621900126338005,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "",
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected  on dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            }
+          ]
+        },
+        {
+          "test_id": "d4d04f21",
+          "test_name": "Adversarial Boundary Numbers",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline).",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 1.8182001076638699,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline).",
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline). on dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            }
+          ]
+        },
+        {
+          "test_id": "fc285d52",
+          "test_name": "Live Corp Email Check",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Hello [EMAIL] welcome",
+            "email_count": 1,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 1.566300168633461,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": {
+                "sanitized_text": "Hello [EMAIL] welcome",
+                "email_count": 1,
+                "phone_count": 0
+              },
+              "target_field": null,
+              "passed": true,
+              "message": "Expected {'sanitized_text': 'Hello [EMAIL] welcome', 'email_count': 1, 'phone_count': 0}, got {'sanitized_text': 'Hello [EMAIL] welcome', 'email_count': 1, 'phone_count': 0}"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_52cd5fd2' (version 1.0.2) with 5 tests.",
+        "[-] Test 'Standard PII Masking' FAILED assertions: [\"'[PHONE]' not found in dictionary keys or string values\"]",
+        "[+] Test 'No PII Present' PASSED in 1.6ms",
+        "[+] Test 'Empty and Null Input' PASSED in 1.6ms",
+        "[+] Test 'Adversarial Boundary Numbers' PASSED in 1.8ms",
+        "[+] Test 'Live Corp Email Check' PASSED in 1.6ms"
+      ]
+    },
+    {
+      "run_id": "run_64e4b126",
+      "skill_id": "skill_52cd5fd2",
+      "version": "1.0.3",
+      "timestamp": 1792763617.0011916,
+      "status": "passed",
+      "passed_count": 5,
+      "failed_count": 0,
+      "total_tests": 5,
+      "pass_rate": 100.0,
+      "test_results": [
+        {
+          "test_id": "0494ecd2",
+          "test_name": "Standard PII Masking",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Contact me at [EMAIL] or call [PHONE]. For office, use [PHONE] or [EMAIL]",
+            "email_count": 2,
+            "phone_count": 2
+          },
+          "error_message": null,
+          "execution_time_ms": 2.5284001603722572,
+          "assertion_results": [
+            {
+              "assertion_type": "contains",
+              "expected": "[EMAIL]",
+              "target_field": null,
+              "passed": true,
+              "message": "Found substring '[EMAIL]' inside dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "[PHONE]",
+              "target_field": null,
+              "passed": true,
+              "message": "Found substring '[PHONE]' inside dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 2 on dictionary field 'email_count'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 2 on dictionary field 'email_count'"
+            }
+          ]
+        },
+        {
+          "test_id": "4044f1a6",
+          "test_name": "No PII Present",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Hello, how are you doing today? The weather is nice in Lahore.",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 4.166599828749895,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Hello, how are you doing today? The weather is nice in Lahore.",
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected Hello, how are you doing today? The weather is nice in Lahore. on dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            }
+          ]
+        },
+        {
+          "test_id": "9ba8164d",
+          "test_name": "Empty and Null Input",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 0.9357999078929424,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "",
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected  on dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            }
+          ]
+        },
+        {
+          "test_id": "d4d04f21",
+          "test_name": "Adversarial Boundary Numbers",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline).",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 0.6782999262213707,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline).",
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected Wrong numbers: 0312345 (too short), 031234567890 (too long), +92123456789 (wrong prefix), 0421234567 (landline). on dictionary field 'sanitized_text'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": null,
+              "passed": true,
+              "message": "Matched expected 0 on dictionary field 'email_count'"
+            }
+          ]
+        },
+        {
+          "test_id": "fc285d52",
+          "test_name": "Live Corp Email Check",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Hello [EMAIL] welcome",
+            "email_count": 1,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 1.2811999768018723,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": {
+                "sanitized_text": "Hello [EMAIL] welcome",
+                "email_count": 1,
+                "phone_count": 0
+              },
+              "target_field": null,
+              "passed": true,
+              "message": "Expected {'sanitized_text': 'Hello [EMAIL] welcome', 'email_count': 1, 'phone_count': 0}, got {'sanitized_text': 'Hello [EMAIL] welcome', 'email_count': 1, 'phone_count': 0}"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_52cd5fd2' (version 1.0.3) with 5 tests.",
+        "[+] Test 'Standard PII Masking' PASSED in 2.5ms",
+        "[+] Test 'No PII Present' PASSED in 4.2ms",
+        "[+] Test 'Empty and Null Input' PASSED in 0.9ms",
+        "[+] Test 'Adversarial Boundary Numbers' PASSED in 0.7ms",
+        "[+] Test 'Live Corp Email Check' PASSED in 1.3ms"
+      ]
+    }
+  ],
+  "improvements": [
+    {
+      "iteration": 1,
+      "previous_version": "1.0.0",
+      "new_version": "1.0.1",
+      "failure_analysis": "The execution errors '__import__ not found' indicate that the environment running the skill has restricted access to the 'import' statement or the 're' module is not being loaded correctly due to environment constraints. However, in most SkillSmith AI environments, this specific error often occurs when the code is executed in a sandbox that requires imports to be handled within the function or when the environment expects a specific structure. More critically, the current regex for Pakistani phone numbers is too restrictive (only matching exactly 11 digits) and doesn't account for common formatting like spaces or hyphens, which likely would have caused the 'Adversarial Boundary Numbers' test to fail even if the import worked.",
+      "changes_made": "1. Moved the 'import re' statement inside the execute function to ensure it is available in restricted execution environments. 2. Updated the phone number regex to handle optional spaces or hyphens between digits to be more robust. 3. Refined the email regex to prevent trailing dots from being captured as part of the email address. 4. Added explicit type casting for the return counts to ensure they are integers.",
+      "before_pass_rate": 0.0,
+      "after_pass_rate": 0.0,
+      "improved": false,
+      "regression_detected": false,
+      "decision": "accepted",
+      "decision_reason": "",
+      "fixed_tests": [],
+      "regressed_tests": [],
+      "remaining_issues": [
+        "Standard PII Masking",
+        "No PII Present",
+        "Empty and Null Input",
+        "Adversarial Boundary Numbers"
+      ],
+      "timestamp": 1792760408.9718177
+    },
+    {
+      "iteration": 2,
+      "previous_version": "1.0.1",
+      "new_version": "1.0.2",
+      "failure_analysis": "The phone number regex `(\\+92\\s?3[\\d\\s-]{9,12}|03[\\d\\s-]{9,12})\\b` is too permissive. It captures sequences of digits that are too long (up to 12 characters after the prefix), causing it to mask numbers that should be considered 'too long' according to the test case. Specifically, it matched '031234567890' (12 digits total) which the test expects to remain unmasked. A standard Pakistani mobile number consists of the prefix (03 or +923) followed by exactly 7 digits (total 10 digits for 03... or 12 for +923...).",
+      "changes_made": "Updated the phone number regex to be more precise. It now specifically looks for the prefix (03 or +923) followed by exactly 7 digits, allowing for optional spaces or hyphens between digits but ensuring the total digit count is correct. Added a lookahead/lookbehind check to ensure the number is not part of a longer sequence of digits, preventing the masking of 'too long' numbers.",
+      "before_pass_rate": 75.0,
+      "after_pass_rate": 75.0,
+      "improved": false,
+      "regression_detected": false,
+      "decision": "accepted",
+      "decision_reason": "",
+      "fixed_tests": [],
+      "regressed_tests": [],
+      "remaining_issues": [
+        "Standard PII Masking"
+      ],
+      "timestamp": 1792761664.8024487
+    },
+    {
+      "iteration": 3,
+      "previous_version": "1.0.2",
+      "new_version": "1.0.3",
+      "failure_analysis": "The phone number regex `(?<!\\d)(?:\\+92\\s?3|03)(?:[\\s-]?\\d){7}(?!\\d)` failed to match the test cases '03001234567' and '+923219876543'. The root cause is the quantifier `{7}`. A Pakistani mobile number consists of the prefix (03 or +92 3) followed by 7 digits. However, the test cases provided have 11 digits total (03 + 9 digits) or 13 characters (+92 3 + 9 digits). Specifically, '03001234567' is 03 + 9 digits, and '+923219876543' is +92 3 + 9 digits. The current regex only looks for 7 digits after the prefix, causing it to fail on standard 11-digit (local) or 13-digit (international) Pakistani mobile numbers.",
+      "changes_made": "Updated the phone number regex to expect exactly 9 digits following the prefix (03 or +92 3), as per the standard Pakistani mobile number format (Total 11 digits including the leading 0). Adjusted the regex to handle optional spaces or hyphens between these 9 digits while maintaining the boundary checks to prevent partial matches of longer numeric strings.",
+      "before_pass_rate": 80.0,
+      "after_pass_rate": 100.0,
+      "improved": true,
+      "regression_detected": false,
+      "decision": "accepted",
+      "decision_reason": "ACCEPTED: Verified improvement from 80.0% to 100.0% with 0 regressions. Fixed 1 test(s): Standard PII Masking.",
+      "fixed_tests": [
+        "Standard PII Masking"
+      ],
+      "regressed_tests": [],
+      "remaining_issues": [],
+      "timestamp": 1792763617.0011916
+    }
+  ],
+  "created_at": 1792760402.2109048,
+  "updated_at": 1792760402.2109048
+}

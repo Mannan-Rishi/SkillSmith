@@ -1,0 +1,4 @@
+{
+  "auto_evolve_on_failure": false,
+  "max_evolution_iterations": 2
+}

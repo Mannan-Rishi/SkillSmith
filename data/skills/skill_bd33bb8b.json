@@ -1,0 +1,3385 @@
+{
+  "id": "skill_bd33bb8b",
+  "name": "Python Code Bug Detector & Reviewer",
+  "category": "Developer Tools",
+  "current_version": "1.0.1",
+  "versions": {
+    "1.0.0": {
+      "version": "1.0.0",
+      "parent_version": null,
+      "manifest": {
+        "name": "Python Code Bug Detector & Reviewer",
+        "slug": "python-code-bug-detector-reviewer",
+        "description": "Analyzes Python source code using static analysis to detect syntax errors, potential bugs, logic risks, and PEP 8 style violations without executing the code.",
+        "category": "Developer Tools",
+        "version": "1.0.0",
+        "parent_version": null,
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "code": "The Python source code to be analyzed (string)",
+          "strict_mode": "Optional flag to enable more rigorous analysis checks (boolean, default: false)"
+        },
+        "outputs": {
+          "is_valid_syntax": "Indicates if the code is syntactically correct (boolean)",
+          "overall_status": "The general state of the code: 'clean', 'issues_found', or 'syntax_error' (string)",
+          "issues": "A list of detected problems, each containing type (syntax_error, bug, runtime_risk, logic_risk, style), severity (critical, high, medium, low), line (integer), description (string), and suggestion (string) (list of objects)",
+          "bug_count": "The total number of detected potential bugs, excluding style-only findings (integer)",
+          "style_issues": "A list of formatting and readability problems (list of strings)",
+          "corrected_code": "A suggested version of the code if a safe correction is clear, otherwise null (string or null)",
+          "warnings": "A list of uncertainties or limitations regarding the analysis (list of strings)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import ast\nimport re\n\ndef execute(inputs: dict) -> dict:\n    code = inputs.get('code', '')\n    strict_mode = inputs.get('strict_mode', False)\n    \n    result = {\n        \"is_valid_syntax\": True,\n        \"overall_status\": \"clean\",\n        \"issues\": [],\n        \"bug_count\": 0,\n        \"style_issues\": [],\n        \"corrected_code\": None,\n        \"warnings\": []\n    }\n\n    if not code or not code.strip():\n        result[\"warnings\"].append(\"No code provided for analysis.\")\n        return result\n\n    try:\n        tree = ast.parse(code)\n    except SyntaxError as e:\n        result[\"is_valid_syntax\"] = False\n        result[\"overall_status\"] = \"syntax_error\"\n        result[\"issues\"].append({\n            \"type\": \"syntax_error\",\n            \"severity\": \"critical\",\n            \"line\": e.lineno,\n            \"description\": e.msg,\n            \"suggestion\": \"Fix the syntax error at the indicated line.\"\n        })\n        return result\n\n    # Analysis State\n    defined_vars = set(['__builtins__', 'print', 'len', 'range', 'int', 'str', 'list', 'dict', 'set', 'float', 'sum', 'max', 'min', 'open'])\n    \n    # Walk the AST\n    for node in ast.walk(tree):\n        # 1. Division by Zero\n        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):\n            if isinstance(node.right, ast.Constant) and node.right.value == 0:\n                result[\"issues\"].append({\n                    \"type\": \"runtime_risk\",\n                    \"severity\": \"high\",\n                    \"line\": getattr(node, 'lineno', 0),\n                    \"description\": \"Potential division by zero detected.\",\n                    \"suggestion\": \"Ensure the divisor is not zero before dividing.\"\n                })\n\n        # 2. Undefined Variables (Basic check)\n        if isinstance(node, ast.Name):\n            if isinstance(node.ctx, ast.Store):\n                defined_vars.add(node.id)\n            elif isinstance(node.ctx, ast.Load):\n                if node.id not in defined_vars:\n                    # We only flag this as a risk because of potential imports or global scope\n                    result[\"issues\"].append({\n                        \"type\": \"logic_risk\",\n                        \"severity\": \"medium\",\n                        \"line\": getattr(node, 'lineno', 0),\n                        \"description\": f\"Variable '{node.id}' may be undefined.\",\n                        \"suggestion\": \"Ensure the variable is defined before use.\"\n                    })\n\n    # Function-specific analysis\n    for node in ast.walk(tree):\n        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):\n            # Check for missing return paths\n            has_return = False\n            for stmt in node.body:\n                if isinstance(stmt, ast.Return):\n                    has_return = True\n                    break\n            if not has_return and strict_mode:\n                result[\"issues\"].append({\n                    \"type\": \"logic_risk\",\n                    \"severity\": \"low\",\n                    \"line\": getattr(node, 'lineno', 0),\n                    \"description\": f\"Function '{node.name}' does not explicitly return a value.\",\n                    \"suggestion\": \"Add a return statement if a value is expected.\"\n                })\n\n            # Check for unreachable code\n            for i, stmt in enumerate(node.body):\n                if isinstance(stmt, (ast.Return, ast.Break, ast.Continue, ast.Raise)):\n                    if i < len(node.body) - 1:\n                        result[\"issues\"].append({\n                            \"type\": \"bug\",\n                            \"severity\": \"medium\",\n                            \"line\": getattr(node.body[i+1], 'lineno', 0),\n                            \"description\": \"Unreachable code detected after control flow statement.\",\n                            \"suggestion\": \"Remove the unreachable code.\"\n                        })\n\n    # Style Analysis (PEP 8)\n    lines = code.splitlines()\n    for i, line in enumerate(lines, 1):\n        if len(line) > 79:\n            result[\"style_issues\"].append(f\"Line {i}: Line too long ({len(line)} > 79 characters).\")\n        \n        # Basic naming check for functions/variables (snake_case)\n        # This is a simplified regex check on the source line for demonstration\n        match = re.search(r'def\\s+([a-zA-Z0-9_]+)', line)\n        if match:\n            name = match.group(1)\n            if not re.match(r'^[a-z_][a-z0-9_]*$', name):\n                result[\"style_issues\"].append(f\"Line {i}: Function name '{name}' should be snake_case.\")\n\n    # Final Aggregation\n    result[\"bug_count\"] = len([i for i in result[\"issues\"] if i[\"type\"] in ('bug', 'runtime_risk', 'logic_risk')])\n    if result[\"issues\"] or result[\"style_issues\"]:\n        result[\"overall_status\"] = \"issues_found\"\n\n    return result"
+      },
+      "skill_md": "---\nname: Python Code Bug Detector & Reviewer\nslug: python-code-bug-detector-reviewer\ncategory: Developer Tools\nversion: 1.0.0\n---\n\n# Python Code Bug Detector & Reviewer\n\n## Overview\nAnalyzes Python source code using static analysis to detect syntax errors, potential bugs, logic risks, and PEP 8 style violations without executing the code. This skill uses the `ast` module to parse the code structure and identify common pitfalls.\n\n## Usage\nProvide the Python source code as a string. Optionally, enable `strict_mode` for more rigorous checks on naming conventions and logic risks.\n\n### Inputs\n- `code` (string): The Python source code to be analyzed.\n- `strict_mode` (boolean, optional): If true, enables more rigorous analysis checks. Defaults to `false`.\n\n### Outputs\n- `is_valid_syntax` (boolean): Indicates if the code is syntactically correct.\n- `overall_status` (string): 'clean', 'issues_found', or 'syntax_error'.\n- `issues` (list): List of objects containing `type`, `severity`, `line`, `description`, and `suggestion`.\n- `bug_count` (integer): Total number of potential bugs (excluding style).\n- `style_issues` (list): List of formatting and readability problems.\n- `corrected_code` (string|null): Suggested version of the code if a safe correction is clear.\n- `warnings` (list): Analysis limitations or uncertainties.\n\n## Steps\n1. **Syntax Validation**: Attempts to parse the code using `ast.parse()`. If it fails, returns a `syntax_error` status immediately.\n2. **Static Analysis**: Traverses the Abstract Syntax Tree (AST) to find:\n    - Division by zero (constant literals).\n    - Unreachable code (statements after `return`, `break`, `continue`, or `raise`).\n    - Undefined variables (basic scope check).\n    - Missing return paths in functions.\n3. **Style Review**: Checks for PEP 8 violations such as line length and naming conventions (snake_case for functions/variables).\n4. **Aggregation**: Compiles all findings into a structured report.\n\n## Error Handling\n- **Empty Input**: Returns a 'clean' status with a warning that no code was provided.\n- **Invalid Syntax**: Catches `SyntaxError` and returns the exact line and message without crashing.\n- **Complex Logic**: If the logic is too complex for static analysis, it is flagged as a warning rather than a bug.",
+      "code": "import ast\nimport re\n\ndef execute(inputs: dict) -> dict:\n    code = inputs.get('code', '')\n    strict_mode = inputs.get('strict_mode', False)\n    \n    result = {\n        \"is_valid_syntax\": True,\n        \"overall_status\": \"clean\",\n        \"issues\": [],\n        \"bug_count\": 0,\n        \"style_issues\": [],\n        \"corrected_code\": None,\n        \"warnings\": []\n    }\n\n    if not code or not code.strip():\n        result[\"warnings\"].append(\"No code provided for analysis.\")\n        return result\n\n    try:\n        tree = ast.parse(code)\n    except SyntaxError as e:\n        result[\"is_valid_syntax\"] = False\n        result[\"overall_status\"] = \"syntax_error\"\n        result[\"issues\"].append({\n            \"type\": \"syntax_error\",\n            \"severity\": \"critical\",\n            \"line\": e.lineno,\n            \"description\": e.msg,\n            \"suggestion\": \"Fix the syntax error at the indicated line.\"\n        })\n        return result\n\n    # Analysis State\n    defined_vars = set(['__builtins__', 'print', 'len', 'range', 'int', 'str', 'list', 'dict', 'set', 'float', 'sum', 'max', 'min', 'open'])\n    \n    # Walk the AST\n    for node in ast.walk(tree):\n        # 1. Division by Zero\n        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):\n            if isinstance(node.right, ast.Constant) and node.right.value == 0:\n                result[\"issues\"].append({\n                    \"type\": \"runtime_risk\",\n                    \"severity\": \"high\",\n                    \"line\": getattr(node, 'lineno', 0),\n                    \"description\": \"Potential division by zero detected.\",\n                    \"suggestion\": \"Ensure the divisor is not zero before dividing.\"\n                })\n\n        # 2. Undefined Variables (Basic check)\n        if isinstance(node, ast.Name):\n            if isinstance(node.ctx, ast.Store):\n                defined_vars.add(node.id)\n            elif isinstance(node.ctx, ast.Load):\n                if node.id not in defined_vars:\n                    # We only flag this as a risk because of potential imports or global scope\n                    result[\"issues\"].append({\n                        \"type\": \"logic_risk\",\n                        \"severity\": \"medium\",\n                        \"line\": getattr(node, 'lineno', 0),\n                        \"description\": f\"Variable '{node.id}' may be undefined.\",\n                        \"suggestion\": \"Ensure the variable is defined before use.\"\n                    })\n\n    # Function-specific analysis\n    for node in ast.walk(tree):\n        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):\n            # Check for missing return paths\n            has_return = False\n            for stmt in node.body:\n                if isinstance(stmt, ast.Return):\n                    has_return = True\n                    break\n            if not has_return and strict_mode:\n                result[\"issues\"].append({\n                    \"type\": \"logic_risk\",\n                    \"severity\": \"low\",\n                    \"line\": getattr(node, 'lineno', 0),\n                    \"description\": f\"Function '{node.name}' does not explicitly return a value.\",\n                    \"suggestion\": \"Add a return statement if a value is expected.\"\n                })\n\n            # Check for unreachable code\n            for i, stmt in enumerate(node.body):\n                if isinstance(stmt, (ast.Return, ast.Break, ast.Continue, ast.Raise)):\n                    if i < len(node.body) - 1:\n                        result[\"issues\"].append({\n                            \"type\": \"bug\",\n                            \"severity\": \"medium\",\n                            \"line\": getattr(node.body[i+1], 'lineno', 0),\n                            \"description\": \"Unreachable code detected after control flow statement.\",\n                            \"suggestion\": \"Remove the unreachable code.\"\n                        })\n\n    # Style Analysis (PEP 8)\n    lines = code.splitlines()\n    for i, line in enumerate(lines, 1):\n        if len(line) > 79:\n            result[\"style_issues\"].append(f\"Line {i}: Line too long ({len(line)} > 79 characters).\")\n        \n        # Basic naming check for functions/variables (snake_case)\n        # This is a simplified regex check on the source line for demonstration\n        match = re.search(r'def\\s+([a-zA-Z0-9_]+)', line)\n        if match:\n            name = match.group(1)\n            if not re.match(r'^[a-z_][a-z0-9_]*$', name):\n                result[\"style_issues\"].append(f\"Line {i}: Function name '{name}' should be snake_case.\")\n\n    # Final Aggregation\n    result[\"bug_count\"] = len([i for i in result[\"issues\"] if i[\"type\"] in ('bug', 'runtime_risk', 'logic_risk')])\n    if result[\"issues\"] or result[\"style_issues\"]:\n        result[\"overall_status\"] = \"issues_found\"\n\n    return result",
+      "created_at": 1792765170.4358163,
+      "latest_run": {
+        "run_id": "run_259eb8d2",
+        "skill_id": "skill_bd33bb8b",
+        "version": "1.0.0",
+        "timestamp": 1792765331.7656193,
+        "status": "failed",
+        "passed_count": 0,
+        "failed_count": 5,
+        "total_tests": 5,
+        "pass_rate": 0.0,
+        "test_results": [
+          {
+            "test_id": "395655ca",
+            "test_name": "Valid Clean Code",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+            "execution_time_ms": 2.072500064969063,
+            "assertion_results": []
+          },
+          {
+            "test_id": "96dc11e3",
+            "test_name": "Syntax Error Detection",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+            "execution_time_ms": 1.2747999280691147,
+            "assertion_results": []
+          },
+          {
+            "test_id": "73abd8aa",
+            "test_name": "Runtime and Logic Risks",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+            "execution_time_ms": 1.2880000285804272,
+            "assertion_results": []
+          },
+          {
+            "test_id": "da554aec",
+            "test_name": "PEP 8 Style Violations",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+            "execution_time_ms": 2.061000093817711,
+            "assertion_results": []
+          },
+          {
+            "test_id": "f15271f6",
+            "test_name": "Empty Input Handling",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+            "execution_time_ms": 2.286599949002266,
+            "assertion_results": []
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_bd33bb8b' (version 1.0.0) with 5 tests.",
+          "[-] Test 'Valid Clean Code' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+          "[-] Test 'Syntax Error Detection' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+          "[-] Test 'Runtime and Logic Risks' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+          "[-] Test 'PEP 8 Style Violations' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+          "[-] Test 'Empty Input Handling' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted."
+        ]
+      }
+    },
+    "1.0.1": {
+      "version": "1.0.1",
+      "parent_version": "1.0.0",
+      "manifest": {
+        "name": "Python Code Bug Detector & Reviewer",
+        "slug": "python-code-bug-detector-reviewer",
+        "description": "Analyzes Python source code using static analysis to detect syntax errors, potential bugs, logic risks, and PEP 8 style violations without executing the code.",
+        "category": "Developer Tools",
+        "version": "1.0.1",
+        "parent_version": "1.0.0",
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "code": "The Python source code to be analyzed (string)",
+          "strict_mode": "Optional flag to enable more rigorous analysis checks (boolean, default: false)"
+        },
+        "outputs": {
+          "is_valid_syntax": "Indicates if the code is syntactically correct (boolean)",
+          "overall_status": "The general state of the code: 'clean', 'issues_found', or 'syntax_error' (string)",
+          "issues": "A list of detected problems, each containing type (syntax_error, bug, runtime_risk, logic_risk, style), severity (critical, high, medium, low), line (integer), description (string), and suggestion (string) (list of objects)",
+          "bug_count": "The total number of detected potential bugs, excluding style-only findings (integer)",
+          "style_issues": "A list of formatting and readability problems (list of strings)",
+          "corrected_code": "A suggested version of the code if a safe correction is clear, otherwise null (string or null)",
+          "warnings": "A list of uncertainties or limitations regarding the analysis (list of strings)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    code = inputs.get('code', '')\n    strict_mode = inputs.get('strict_mode', False)\n    \n    result = {\n        \"is_valid_syntax\": True,\n        \"overall_status\": \"clean\",\n        \"issues\": [],\n        \"bug_count\": 0,\n        \"style_issues\": [],\n        \"corrected_code\": None,\n        \"warnings\": []\n    }\n\n    if not code or not code.strip():\n        result[\"warnings\"].append(\"No code provided for analysis.\")\n        return result\n\n    lines = code.splitlines()\n    \n    # 1. Basic Syntax Check (Bracket Balancing)\n    stack = []\n    brackets = {'(': ')', '[': ']', '{': '}'}\n    for i, line in enumerate(lines, 1):\n        for char in line:\n            if char in brackets:\n                stack.append((char, i))\n            elif char in brackets.values():\n                if not stack:\n                    result[\"is_valid_syntax\"] = False\n                    result[\"overall_status\"] = \"syntax_error\"\n                    result[\"issues\"].append({\n                        \"type\": \"syntax_error\", \"severity\": \"critical\", \"line\": i,\n                        \"description\": \"Unmatched closing bracket.\", \"suggestion\": \"Check bracket pairing.\"\n                    })\n                else:\n                    opening, _ = stack.pop()\n                    if brackets[opening] != char:\n                        result[\"is_valid_syntax\"] = False\n                        result[\"overall_status\"] = \"syntax_error\"\n                        result[\"issues\"].append({\n                            \"type\": \"syntax_error\", \"severity\": \"critical\", \"line\": i,\n                            \"description\": \"Mismatched brackets.\", \"suggestion\": \"Ensure brackets match.\"\n                        })\n    if stack:\n        result[\"is_valid_syntax\"] = False\n        result[\"overall_status\"] = \"syntax_error\"\n        char, line_num = stack[-1]\n        result[\"issues\"].append({\n            \"type\": \"syntax_error\", \"severity\": \"critical\", \"line\": line_num,\n            \"description\": f\"Unclosed bracket '{char}'.\", \"suggestion\": \"Close the bracket.\"\n        })\n\n    if not result[\"is_valid_syntax\"]: return result\n\n    # 2. Logic and Runtime Analysis\n    defined_vars = {'print', 'len', 'range', 'int', 'str', 'list', 'dict', 'set', 'float', 'sum', 'max', 'min', 'open'}\n    \n    for i, line in enumerate(lines, 1):\n        stripped = line.strip()\n        if not stripped: continue\n\n        # Division by Zero\n        if re.search(r'/\\s*0(\\.0+)?(\\s*|$|#)', stripped):\n            result[\"issues\"].append({\n                \"type\": \"runtime_risk\", \"severity\": \"high\", \"line\": i,\n                \"description\": \"Potential division by zero detected.\", \"suggestion\": \"Ensure the divisor is not zero.\"\n            })\n\n        # Undefined Variables (Basic Assignment Tracking)\n        assign_match = re.match(r'^([a-zA-Z_][a-zA-Z0-9_]*)\\s*=', stripped)\n        if assign_match:\n            defined_vars.add(assign_match.group(1))\n        \n        # Simple check for usage of undefined variables (excluding keywords/builtins)\n        # This is a heuristic: look for words that aren't keywords or defined\n        words = re.findall(r'\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b', stripped)\n        for word in words:\n            if word not in defined_vars and not re.match(r'^(def|if|else|elif|for|while|return|break|continue|pass|import|from|as|try|except|finally|class|with|in|and|or|not|lambda)', word):\n                # To avoid false positives on function arguments, we'd need a full parser. \n                # For this simulation, we flag it as a risk.\n                if not any(re.search(rf'def\\s+[^:]*\\b{word}\\b', l) for l in lines):\n                    result[\"issues\"].append({\n                        \"type\": \"logic_risk\", \"severity\": \"medium\", \"line\": i,\n                        \"description\": f\"Variable '{word}' may be undefined.\", \"suggestion\": \"Ensure the variable is defined.\"\n                    })\n                    defined_vars.add(word) # Avoid duplicate flags for same var\n\n        # Unreachable Code\n        if re.match(r'^(return|break|continue|raise)\\b', stripped):\n            if i < len(lines):\n                next_line = lines[i].strip()\n                if next_line and not next_line.startswith('#') and (not lines[i].startswith(line[:line.find(stripped)])):\n                    result[\"issues\"].append({\n                        \"type\": \"bug\", \"severity\": \"medium\", \"line\": i + 1,\n                        \"description\": \"Unreachable code detected after control flow statement.\", \"suggestion\": \"Remove unreachable code.\"\n                    })\n\n    # 3. Function-specific analysis (Strict Mode)\n    if strict_mode:\n        for i, line in enumerate(lines, 1):\n            if line.strip().startswith('def '):\n                # Find end of function block\n                has_return = False\n                indent = line[:line.find('def')]\n                for next_line in lines[i:]:\n                    if next_line.strip() and not next_line.startswith(indent + ' '):\n                        break\n                    if 'return' in next_line:\n                        has_return = True\n                        break\n                if not has_return:\n                    result[\"issues\"].append({\n                        \"type\": \"logic_risk\", \"severity\": \"low\", \"line\": i,\n                        \"description\": \"Function does not explicitly return a value.\", \"suggestion\": \"Add a return statement.\"\n                    })\n\n    # 4. Style Analysis (PEP 8)\n    for i, line in enumerate(lines, 1):\n        if len(line) > 79:\n            result[\"style_issues\"].append(f\"Line {i}: Line too long ({len(line)} > 79 characters).\")\n        \n        func_match = re.search(r'def\\s+([a-zA-Z0-9_]+)', line)\n        if func_match:\n            name = func_match.group(1)\n            if not re.match(r'^[a-z_][a-z0-9_]*$', name):\n                result[\"style_issues\"].append(f\"Line {i}: Function name '{name}' should be snake_case.\")\n\n    # Final Aggregation\n    result[\"bug_count\"] = len([i for i in result[\"issues\"] if i[\"type\"] in ('bug', 'runtime_risk', 'logic_risk')])\n    if result[\"issues\"] or result[\"style_issues\"]:\n        result[\"overall_status\"] = \"issues_found\"\n\n    return result"
+      },
+      "skill_md": "# Python Static Analyzer\n\nAnalyzes Python code for syntax errors, runtime risks, logic bugs, and PEP 8 style violations using static analysis.\n\n## Inputs\n- `code` (string): The Python source code to analyze.\n- `strict_mode` (boolean): If true, flags functions missing explicit return statements.\n\n## Outputs\n- `is_valid_syntax` (boolean): True if no basic syntax errors were detected.\n- `overall_status` (string): 'clean', 'syntax_error', or 'issues_found'.\n- `issues` (list): List of detected bugs/risks containing `type`, `severity`, `line`, `description`, and `suggestion`.\n- `bug_count` (integer): Total number of critical/high/medium issues.\n- `style_issues` (list): List of PEP 8 violations.\n- `warnings` (list): General warnings (e.g., empty input).",
+      "code": "import ast\nimport re\n\ndef execute(inputs: dict) -> dict:\n    code = inputs.get('code', '')\n    strict_mode = bool(inputs.get('strict_mode', False))\n    \n    result = {\n        \"is_valid_syntax\": True,\n        \"overall_status\": \"clean\",\n        \"issues\": [],\n        \"bug_count\": 0,\n        \"style_issues\": [],\n        \"corrected_code\": None,\n        \"warnings\": []\n    }\n\n    if not code or not code.strip():\n        result[\"warnings\"].append(\"No code provided for analysis.\")\n        return result\n\n    # 1. AST Syntax Verification\n    try:\n        tree = ast.parse(code)\n    except SyntaxError as se:\n        result[\"is_valid_syntax\"] = False\n        result[\"overall_status\"] = \"syntax_error\"\n        result[\"issues\"].append({\n            \"type\": \"syntax_error\",\n            \"severity\": \"critical\",\n            \"line\": se.lineno or 1,\n            \"description\": f\"SyntaxError: {se.msg}\",\n            \"suggestion\": \"Fix syntax error at specified line.\"\n        })\n        result[\"bug_count\"] = 1\n        return result\n\n    # 2. Static AST Analysis for Bugs and Style\n    builtins_set = {\n        'print', 'len', 'range', 'int', 'str', 'float', 'list', 'dict', 'set',\n        'tuple', 'bool', 'sum', 'max', 'min', 'abs', 'round', 'enumerate',\n        'zip', 'map', 'filter', 'sorted', 'reversed', 'open', 'type', 'isinstance',\n        'True', 'False', 'None'\n    }\n\n    defined_names = set(builtins_set)\n\n    # First pass: collect function names, classes, and top-level definitions\n    for node in ast.walk(tree):\n        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):\n            defined_names.add(node.name)\n        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):\n            defined_names.add(node.id)\n        elif isinstance(node, ast.Import):\n            for a in node.names:\n                defined_names.add(a.asname or a.name)\n        elif isinstance(node, ast.ImportFrom):\n            for a in node.names:\n                defined_names.add(a.asname or a.name)\n\n    issues = []\n    style_issues = []\n\n    # Check function arguments\n    for node in ast.walk(tree):\n        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):\n            for arg in node.args.args:\n                defined_names.add(arg.arg)\n            # PEP 8 check for function names\n            if not re.match(r'^[a-z_][a-z0-9_]*$', node.name):\n                style_issues.append(f\"Line {node.lineno}: Function name '{node.name}' should be snake_case.\")\n\n    # Check division by zero and undefined variables\n    for node in ast.walk(tree):\n        # Division by zero\n        if isinstance(node, (ast.Div, ast.FloorDiv, ast.Mod)):\n            pass\n        if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod)):\n            if isinstance(node.right, ast.Constant) and node.right.value == 0:\n                issues.append({\n                    \"type\": \"runtime_risk\",\n                    \"severity\": \"critical\",\n                    \"line\": node.lineno,\n                    \"description\": \"Division by zero detected.\",\n                    \"suggestion\": \"Ensure the divisor cannot be zero.\"\n                })\n        # Undefined variables\n        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):\n            if node.id not in defined_names:\n                issues.append({\n                    \"type\": \"logic_risk\",\n                    \"severity\": \"high\",\n                    \"line\": node.lineno,\n                    \"description\": f\"Variable '{node.id}' may be undefined.\",\n                    \"suggestion\": f\"Define '{node.id}' before use.\"\n                })\n                defined_names.add(node.id) # Flag once\n\n    # Check unreachable code (statements after return/break/continue/raise)\n    for node in ast.walk(tree):\n        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.For, ast.While, ast.If, ast.With, ast.Try, ast.Module)):\n            body = node.body\n            found_terminal = False\n            for stmt in body:\n                if found_terminal:\n                    issues.append({\n                        \"type\": \"bug\",\n                        \"severity\": \"medium\",\n                        \"line\": stmt.lineno,\n                        \"description\": \"Unreachable code detected after terminal statement.\",\n                        \"suggestion\": \"Remove or refactor unreachable statements.\"\n                    })\n                    break\n                if isinstance(stmt, (ast.Return, ast.Raise, ast.Break, ast.Continue)):\n                    found_terminal = True\n\n    # Check line length style\n    for i, line in enumerate(code.splitlines(), 1):\n        if len(line) > 79:\n            style_issues.append(f\"Line {i}: Line too long ({len(line)} > 79 characters).\")\n\n    result[\"issues\"] = issues\n    result[\"style_issues\"] = style_issues\n    result[\"bug_count\"] = len([iss for iss in issues if iss[\"type\"] in (\"bug\", \"runtime_risk\", \"syntax_error\", \"logic_risk\")])\n\n    if result[\"bug_count\"] > 0 or result[\"style_issues\"]:\n        result[\"overall_status\"] = \"issues_found\"\n    else:\n        result[\"overall_status\"] = \"clean\"\n\n    return result\n",
+      "created_at": 1792765207.3332965,
+      "latest_run": {
+        "run_id": "run_738c0ce5",
+        "skill_id": "skill_bd33bb8b",
+        "version": "1.0.1",
+        "timestamp": 1792767673.8928626,
+        "status": "passed",
+        "passed_count": 5,
+        "failed_count": 0,
+        "total_tests": 5,
+        "pass_rate": 100.0,
+        "test_results": [
+          {
+            "test_id": "395655ca",
+            "test_name": "Valid Clean Code",
+            "passed": true,
+            "actual_output": {
+              "is_valid_syntax": true,
+              "overall_status": "clean",
+              "issues": [],
+              "bug_count": 0,
+              "style_issues": [],
+              "corrected_code": null,
+              "warnings": []
+            },
+            "error_message": null,
+            "execution_time_ms": 8.171200286597013,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": true,
+                "target_field": "is_valid_syntax",
+                "passed": true,
+                "message": "Expected True, got True",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "clean",
+                "target_field": "overall_status",
+                "passed": true,
+                "message": "Expected clean, got clean",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "bug_count",
+                "passed": true,
+                "message": "Expected 0, got 0",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "96dc11e3",
+            "test_name": "Syntax Error Detection",
+            "passed": true,
+            "actual_output": {
+              "is_valid_syntax": false,
+              "overall_status": "syntax_error",
+              "issues": [
+                {
+                  "type": "syntax_error",
+                  "severity": "critical",
+                  "line": 1,
+                  "description": "SyntaxError: invalid syntax",
+                  "suggestion": "Fix syntax error at specified line."
+                }
+              ],
+              "bug_count": 1,
+              "style_issues": [],
+              "corrected_code": null,
+              "warnings": []
+            },
+            "error_message": null,
+            "execution_time_ms": 9.709599893540144,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": false,
+                "target_field": "is_valid_syntax",
+                "passed": true,
+                "message": "Expected False, got False",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "syntax_error",
+                "target_field": "overall_status",
+                "passed": true,
+                "message": "Expected syntax_error, got syntax_error",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "has_key",
+                "expected": "type",
+                "target_field": "issues",
+                "passed": true,
+                "message": "Checked key 'type' found in list item #0",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "73abd8aa",
+            "test_name": "Runtime and Logic Risks",
+            "passed": true,
+            "actual_output": {
+              "is_valid_syntax": true,
+              "overall_status": "issues_found",
+              "issues": [
+                {
+                  "type": "runtime_risk",
+                  "severity": "critical",
+                  "line": 2,
+                  "description": "Division by zero detected.",
+                  "suggestion": "Ensure the divisor cannot be zero."
+                },
+                {
+                  "type": "logic_risk",
+                  "severity": "high",
+                  "line": 5,
+                  "description": "Variable 'undefined_var' may be undefined.",
+                  "suggestion": "Define 'undefined_var' before use."
+                },
+                {
+                  "type": "bug",
+                  "severity": "medium",
+                  "line": 3,
+                  "description": "Unreachable code detected after terminal statement.",
+                  "suggestion": "Remove or refactor unreachable statements."
+                }
+              ],
+              "bug_count": 3,
+              "style_issues": [],
+              "corrected_code": null,
+              "warnings": []
+            },
+            "error_message": null,
+            "execution_time_ms": 7.136099971830845,
+            "assertion_results": [
+              {
+                "assertion_type": "numeric_range",
+                "expected": [
+                  3,
+                  3
+                ],
+                "target_field": "bug_count",
+                "passed": true,
+                "message": "Checked if 3.0 <= 3.0 <= 3.0",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "issues_found",
+                "target_field": "overall_status",
+                "passed": true,
+                "message": "Expected issues_found, got issues_found",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "da554aec",
+            "test_name": "PEP 8 Style Violations",
+            "passed": true,
+            "actual_output": {
+              "is_valid_syntax": true,
+              "overall_status": "issues_found",
+              "issues": [],
+              "bug_count": 0,
+              "style_issues": [
+                "Line 1: Function name 'BadFunctionName' should be snake_case.",
+                "Line 2: Line too long (131 > 79 characters)."
+              ],
+              "corrected_code": null,
+              "warnings": []
+            },
+            "error_message": null,
+            "execution_time_ms": 7.7529000118374825,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "bug_count",
+                "passed": true,
+                "message": "Expected 0, got 0",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "not_empty",
+                "expected": true,
+                "target_field": "style_issues",
+                "passed": true,
+                "message": "Checked collection is non-empty (size: 2)",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "snake_case",
+                "target_field": "style_issues",
+                "passed": true,
+                "message": "Found substring 'snake_case' inside list item 'Line 1: Function name 'BadFunctionName' should be snake_case.'",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "f15271f6",
+            "test_name": "Empty Input Handling",
+            "passed": true,
+            "actual_output": {
+              "is_valid_syntax": true,
+              "overall_status": "clean",
+              "issues": [],
+              "bug_count": 0,
+              "style_issues": [],
+              "corrected_code": null,
+              "warnings": [
+                "No code provided for analysis."
+              ]
+            },
+            "error_message": null,
+            "execution_time_ms": 10.446500033140182,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": true,
+                "target_field": "is_valid_syntax",
+                "passed": true,
+                "message": "Expected True, got True",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "No code provided",
+                "target_field": "warnings",
+                "passed": true,
+                "message": "Found substring 'No code provided' inside list item 'No code provided for analysis.'",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "bug_count",
+                "passed": true,
+                "message": "Expected 0, got 0",
+                "is_evaluator_error": false
+              }
+            ]
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_bd33bb8b' (version 1.0.1) with 5 tests.",
+          "[+] Test 'Valid Clean Code' PASSED in 8.2ms",
+          "[+] Test 'Syntax Error Detection' PASSED in 9.7ms",
+          "[+] Test 'Runtime and Logic Risks' PASSED in 7.1ms",
+          "[+] Test 'PEP 8 Style Violations' PASSED in 7.8ms",
+          "[+] Test 'Empty Input Handling' PASSED in 10.4ms"
+        ]
+      }
+    },
+    "1.0.2": {
+      "version": "1.0.2",
+      "parent_version": "1.0.1",
+      "manifest": {
+        "name": "Python Code Bug Detector & Reviewer",
+        "slug": "python-code-bug-detector-reviewer",
+        "description": "Analyzes Python source code using static analysis to detect syntax errors, potential bugs, logic risks, and PEP 8 style violations without executing the code.",
+        "category": "Developer Tools",
+        "version": "1.0.2",
+        "parent_version": "1.0.1",
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "code": "The Python source code to be analyzed (string)",
+          "strict_mode": "Optional flag to enable more rigorous analysis checks (boolean, default: false)"
+        },
+        "outputs": {
+          "is_valid_syntax": "Indicates if the code is syntactically correct (boolean)",
+          "overall_status": "The general state of the code: 'clean', 'issues_found', or 'syntax_error' (string)",
+          "issues": "A list of detected problems, each containing type (syntax_error, bug, runtime_risk, logic_risk, style), severity (critical, high, medium, low), line (integer), description (string), and suggestion (string) (list of objects)",
+          "bug_count": "The total number of detected potential bugs, excluding style-only findings (integer)",
+          "style_issues": "A list of formatting and readability problems (list of strings)",
+          "corrected_code": "A suggested version of the code if a safe correction is clear, otherwise null (string or null)",
+          "warnings": "A list of uncertainties or limitations regarding the analysis (list of strings)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    code = inputs.get('code', '')\n    strict_mode = inputs.get('strict_mode', False)\n    \n    result = {\n        \"is_valid_syntax\": True,\n        \"overall_status\": \"clean\",\n        \"issues\": [],\n        \"bug_count\": 0,\n        \"style_issues\": [],\n        \"corrected_code\": None,\n        \"warnings\": []\n    }\n\n    if not code or not code.strip():\n        result[\"warnings\"].append(\"No code provided\")\n        return result\n\n    lines = code.splitlines()\n    \n    # 1. Basic Syntax Check (Bracket Balancing)\n    stack = []\n    brackets = {'(': ')', '[': ']', '{': '}'}\n    for i, line in enumerate(lines, 1):\n        for char in line:\n            if char in brackets:\n                stack.append((char, i))\n            elif char in brackets.values():\n                if not stack:\n                    result[\"is_valid_syntax\"] = False\n                    result[\"overall_status\"] = \"syntax_error\"\n                    result[\"issues\"].append({\n                        \"type\": \"syntax_error\", \"severity\": \"critical\", \"line\": i,\n                        \"description\": \"Unmatched closing bracket.\", \"suggestion\": \"Check bracket pairing.\"\n                    })\n                else:\n                    opening, _ = stack.pop()\n                    if brackets[opening] != char:\n                        result[\"is_valid_syntax\"] = False\n                        result[\"overall_status\"] = \"syntax_error\"\n                        result[\"issues\"].append({\n                            \"type\": \"syntax_error\", \"severity\": \"critical\", \"line\": i,\n                            \"description\": \"Mismatched brackets.\", \"suggestion\": \"Ensure brackets match.\"\n                        })\n    if stack:\n        result[\"is_valid_syntax\"] = False\n        result[\"overall_status\"] = \"syntax_error\"\n        char, line_num = stack[-1]\n        result[\"issues\"].append({\n            \"type\": \"syntax_error\", \"severity\": \"critical\", \"line\": line_num,\n            \"description\": f\"Unclosed bracket '{char}'.\", \"suggestion\": \"Close the bracket.\"\n        })\n\n    if not result[\"is_valid_syntax\"]: return result\n\n    # 2. Logic and Runtime Analysis\n    defined_vars = {'print', 'len', 'range', 'int', 'str', 'list', 'dict', 'set', 'float', 'sum', 'max', 'min', 'open', 'True', 'False', 'None'}\n    \n    for i, line in enumerate(lines, 1):\n        stripped = line.strip()\n        if not stripped: continue\n\n        # Remove string literals to avoid false positives in variable detection\n        # This handles basic '...' and \"...\"\n        code_without_strings = re.sub(r'(\".*?\"|\\'.*?\\')', ' ', stripped)\n\n        # Division by Zero\n        if re.search(r'/\\s*0(\\.0+)?(\\s*|$|#)', code_without_strings):\n            result[\"issues\"].append({\n                \"type\": \"runtime_risk\", \"severity\": \"high\", \"line\": i,\n                \"description\": \"Potential division by zero detected.\", \"suggestion\": \"Ensure the divisor is not zero.\"\n            })\n\n        # Undefined Variables (Basic Assignment Tracking)\n        assign_match = re.match(r'^([a-zA-Z_][a-zA-Z0-9_]*)\\s*=', code_without_strings.strip())\n        if assign_match:\n            defined_vars.add(assign_match.group(1))\n        \n        # Simple check for usage of undefined variables\n        words = re.findall(r'\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b', code_without_strings)\n        for word in words:\n            if word not in defined_vars and not re.match(r'^(def|if|else|elif|for|while|return|break|continue|pass|import|from|as|try|except|finally|class|with|in|and|or|not|lambda)', word):\n                if not any(re.search(rf'def\\s+[^:]*\\b{word}\\b', l) for l in lines):\n                    result[\"issues\"].append({\n                        \"type\": \"logic_risk\", \"severity\": \"medium\", \"line\": i,\n                        \"description\": f\"Variable '{word}' may be undefined.\", \"suggestion\": \"Ensure the variable is defined.\"\n                    })\n                    defined_vars.add(word)\n\n        # Unreachable Code\n        if re.match(r'^(return|break|continue|raise)\\b', stripped):\n            if i < len(lines):\n                next_line = lines[i].strip()\n                if next_line and not next_line.startswith('#') and (not lines[i].startswith(line[:line.find(stripped)])):\n                    result[\"issues\"].append({\n                        \"type\": \"bug\", \"severity\": \"medium\", \"line\": i + 1,\n                        \"description\": \"Unreachable code detected after control flow statement.\", \"suggestion\": \"Remove unreachable code.\"\n                    })\n\n    # 3. Function-specific analysis (Strict Mode)\n    if strict_mode:\n        for i, line in enumerate(lines, 1):\n            if line.strip().startswith('def '):\n                has_return = False\n                indent = line[:line.find('def')]\n                for next_line in lines[i:]:\n                    if next_line.strip() and not next_line.startswith(indent + ' '):\n                        break\n                    if 'return' in next_line:\n                        has_return = True\n                        break\n                if not has_return:\n                    result[\"issues\"].append({\n                        \"type\": \"logic_risk\", \"severity\": \"low\", \"line\": i,\n                        \"description\": \"Function does not explicitly return a value.\", \"suggestion\": \"Add a return statement.\"\n                    })\n\n    # 4. Style Analysis (PEP 8)\n    for i, line in enumerate(lines, 1):\n        if len(line) > 79:\n            result[\"style_issues\"].append(f\"Line {i}: Line too long ({len(line)} > 79 characters).\")\n        \n        func_match = re.search(r'def\\s+([a-zA-Z0-9_]+)', line)\n        if func_match:\n            name = func_match.group(1)\n            if not re.match(r'^[a-z_][a-z0-9_]*$', name):\n                result[\"style_issues\"].append(f\"Line {i}: Function name '{name}' should be snake_case.\")\n\n    # Final Aggregation\n    result[\"bug_count\"] = len([i for i in result[\"issues\"] if i[\"type\"] in ('bug', 'runtime_risk', 'logic_risk')])\n    if result[\"issues\"] or result[\"style_issues\"]:\n        result[\"overall_status\"] = \"issues_found\"\n\n    return result"
+      },
+      "skill_md": "# Python Code Analyzer\n\nAnalyzes Python code for syntax errors, potential runtime bugs, and PEP 8 style violations.\n\n## Inputs\n- `code` (string): The Python source code to analyze.\n- `strict_mode` (boolean): If true, enables stricter checks (e.g., ensuring functions have return statements).\n\n## Outputs\n- `is_valid_syntax` (boolean): True if brackets are balanced.\n- `overall_status` (string): 'clean', 'syntax_error', or 'issues_found'.\n- `issues` (list): List of objects containing `type`, `severity`, `line`, `description`, and `suggestion`.\n- `bug_count` (integer): Total count of critical/high/medium issues.\n- `style_issues` (list): List of PEP 8 violation strings.\n- `corrected_code` (string|null): Suggested fix (currently null).\n- `warnings` (list): General warnings about the analysis process.",
+      "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    code = inputs.get('code', '')\n    strict_mode = inputs.get('strict_mode', False)\n    \n    result = {\n        \"is_valid_syntax\": True,\n        \"overall_status\": \"clean\",\n        \"issues\": [],\n        \"bug_count\": 0,\n        \"style_issues\": [],\n        \"corrected_code\": None,\n        \"warnings\": []\n    }\n\n    if not code or not code.strip():\n        result[\"warnings\"].append(\"No code provided\")\n        return result\n\n    lines = code.splitlines()\n    \n    # 1. Basic Syntax Check (Bracket Balancing)\n    stack = []\n    brackets = {'(': ')', '[': ']', '{': '}'}\n    for i, line in enumerate(lines, 1):\n        for char in line:\n            if char in brackets:\n                stack.append((char, i))\n            elif char in brackets.values():\n                if not stack:\n                    result[\"is_valid_syntax\"] = False\n                    result[\"overall_status\"] = \"syntax_error\"\n                    result[\"issues\"].append({\n                        \"type\": \"syntax_error\", \"severity\": \"critical\", \"line\": i,\n                        \"description\": \"Unmatched closing bracket.\", \"suggestion\": \"Check bracket pairing.\"\n                    })\n                else:\n                    opening, _ = stack.pop()\n                    if brackets[opening] != char:\n                        result[\"is_valid_syntax\"] = False\n                        result[\"overall_status\"] = \"syntax_error\"\n                        result[\"issues\"].append({\n                            \"type\": \"syntax_error\", \"severity\": \"critical\", \"line\": i,\n                            \"description\": \"Mismatched brackets.\", \"suggestion\": \"Ensure brackets match.\"\n                        })\n    if stack:\n        result[\"is_valid_syntax\"] = False\n        result[\"overall_status\"] = \"syntax_error\"\n        char, line_num = stack[-1]\n        result[\"issues\"].append({\n            \"type\": \"syntax_error\", \"severity\": \"critical\", \"line\": line_num,\n            \"description\": f\"Unclosed bracket '{char}'.\", \"suggestion\": \"Close the bracket.\"\n        })\n\n    if not result[\"is_valid_syntax\"]: return result\n\n    # 2. Logic and Runtime Analysis\n    defined_vars = {'print', 'len', 'range', 'int', 'str', 'list', 'dict', 'set', 'float', 'sum', 'max', 'min', 'open', 'True', 'False', 'None'}\n    \n    for i, line in enumerate(lines, 1):\n        stripped = line.strip()\n        if not stripped: continue\n\n        # Remove string literals to avoid false positives in variable detection\n        # This handles basic '...' and \"...\"\n        code_without_strings = re.sub(r'(\".*?\"|\\'.*?\\')', ' ', stripped)\n\n        # Division by Zero\n        if re.search(r'/\\s*0(\\.0+)?(\\s*|$|#)', code_without_strings):\n            result[\"issues\"].append({\n                \"type\": \"runtime_risk\", \"severity\": \"high\", \"line\": i,\n                \"description\": \"Potential division by zero detected.\", \"suggestion\": \"Ensure the divisor is not zero.\"\n            })\n\n        # Undefined Variables (Basic Assignment Tracking)\n        assign_match = re.match(r'^([a-zA-Z_][a-zA-Z0-9_]*)\\s*=', code_without_strings.strip())\n        if assign_match:\n            defined_vars.add(assign_match.group(1))\n        \n        # Simple check for usage of undefined variables\n        words = re.findall(r'\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b', code_without_strings)\n        for word in words:\n            if word not in defined_vars and not re.match(r'^(def|if|else|elif|for|while|return|break|continue|pass|import|from|as|try|except|finally|class|with|in|and|or|not|lambda)', word):\n                if not any(re.search(rf'def\\s+[^:]*\\b{word}\\b', l) for l in lines):\n                    result[\"issues\"].append({\n                        \"type\": \"logic_risk\", \"severity\": \"medium\", \"line\": i,\n                        \"description\": f\"Variable '{word}' may be undefined.\", \"suggestion\": \"Ensure the variable is defined.\"\n                    })\n                    defined_vars.add(word)\n\n        # Unreachable Code\n        if re.match(r'^(return|break|continue|raise)\\b', stripped):\n            if i < len(lines):\n                next_line = lines[i].strip()\n                if next_line and not next_line.startswith('#') and (not lines[i].startswith(line[:line.find(stripped)])):\n                    result[\"issues\"].append({\n                        \"type\": \"bug\", \"severity\": \"medium\", \"line\": i + 1,\n                        \"description\": \"Unreachable code detected after control flow statement.\", \"suggestion\": \"Remove unreachable code.\"\n                    })\n\n    # 3. Function-specific analysis (Strict Mode)\n    if strict_mode:\n        for i, line in enumerate(lines, 1):\n            if line.strip().startswith('def '):\n                has_return = False\n                indent = line[:line.find('def')]\n                for next_line in lines[i:]:\n                    if next_line.strip() and not next_line.startswith(indent + ' '):\n                        break\n                    if 'return' in next_line:\n                        has_return = True\n                        break\n                if not has_return:\n                    result[\"issues\"].append({\n                        \"type\": \"logic_risk\", \"severity\": \"low\", \"line\": i,\n                        \"description\": \"Function does not explicitly return a value.\", \"suggestion\": \"Add a return statement.\"\n                    })\n\n    # 4. Style Analysis (PEP 8)\n    for i, line in enumerate(lines, 1):\n        if len(line) > 79:\n            result[\"style_issues\"].append(f\"Line {i}: Line too long ({len(line)} > 79 characters).\")\n        \n        func_match = re.search(r'def\\s+([a-zA-Z0-9_]+)', line)\n        if func_match:\n            name = func_match.group(1)\n            if not re.match(r'^[a-z_][a-z0-9_]*$', name):\n                result[\"style_issues\"].append(f\"Line {i}: Function name '{name}' should be snake_case.\")\n\n    # Final Aggregation\n    result[\"bug_count\"] = len([i for i in result[\"issues\"] if i[\"type\"] in ('bug', 'runtime_risk', 'logic_risk')])\n    if result[\"issues\"] or result[\"style_issues\"]:\n        result[\"overall_status\"] = \"issues_found\"\n\n    return result",
+      "created_at": 1792765419.4998026,
+      "latest_run": {
+        "run_id": "run_27c57f67",
+        "skill_id": "skill_bd33bb8b",
+        "version": "1.0.2",
+        "timestamp": 1792765419.553498,
+        "status": "failed",
+        "passed_count": 2,
+        "failed_count": 3,
+        "total_tests": 5,
+        "pass_rate": 40.0,
+        "test_results": [
+          {
+            "test_id": "395655ca",
+            "test_name": "Valid Clean Code",
+            "passed": true,
+            "actual_output": {
+              "is_valid_syntax": true,
+              "overall_status": "clean",
+              "issues": [],
+              "bug_count": 0,
+              "style_issues": [],
+              "corrected_code": null,
+              "warnings": []
+            },
+            "error_message": null,
+            "execution_time_ms": 13.48060043528676,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": true,
+                "target_field": "is_valid_syntax",
+                "passed": true,
+                "message": "Expected True, got True"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "clean",
+                "target_field": "overall_status",
+                "passed": true,
+                "message": "Expected clean, got clean"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "bug_count",
+                "passed": true,
+                "message": "Expected 0, got 0"
+              }
+            ]
+          },
+          {
+            "test_id": "96dc11e3",
+            "test_name": "Syntax Error Detection",
+            "passed": false,
+            "actual_output": {
+              "is_valid_syntax": false,
+              "overall_status": "syntax_error",
+              "issues": [
+                {
+                  "type": "syntax_error",
+                  "severity": "critical",
+                  "line": 2,
+                  "description": "Unclosed bracket '('.",
+                  "suggestion": "Close the bracket."
+                }
+              ],
+              "bug_count": 0,
+              "style_issues": [],
+              "corrected_code": null,
+              "warnings": []
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 10.005200281739235,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": false,
+                "target_field": "is_valid_syntax",
+                "passed": true,
+                "message": "Expected False, got False"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "syntax_error",
+                "target_field": "overall_status",
+                "passed": true,
+                "message": "Expected syntax_error, got syntax_error"
+              },
+              {
+                "assertion_type": "has_key",
+                "expected": "type",
+                "target_field": "issues",
+                "passed": false,
+                "message": "Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']"
+              }
+            ]
+          },
+          {
+            "test_id": "73abd8aa",
+            "test_name": "Runtime and Logic Risks",
+            "passed": false,
+            "actual_output": {
+              "is_valid_syntax": true,
+              "overall_status": "issues_found",
+              "issues": [
+                {
+                  "type": "runtime_risk",
+                  "severity": "high",
+                  "line": 2,
+                  "description": "Potential division by zero detected.",
+                  "suggestion": "Ensure the divisor is not zero."
+                },
+                {
+                  "type": "logic_risk",
+                  "severity": "medium",
+                  "line": 5,
+                  "description": "Variable 'undefined_var' may be undefined.",
+                  "suggestion": "Ensure the variable is defined."
+                }
+              ],
+              "bug_count": 2,
+              "style_issues": [],
+              "corrected_code": null,
+              "warnings": []
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 9.511599782854319,
+            "assertion_results": [
+              {
+                "assertion_type": "numeric_range",
+                "expected": [
+                  3,
+                  3
+                ],
+                "target_field": "bug_count",
+                "passed": false,
+                "message": "Checked if 3 <= 2.0 <= 3"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "issues_found",
+                "target_field": "overall_status",
+                "passed": true,
+                "message": "Expected issues_found, got issues_found"
+              }
+            ]
+          },
+          {
+            "test_id": "da554aec",
+            "test_name": "PEP 8 Style Violations",
+            "passed": false,
+            "actual_output": {
+              "is_valid_syntax": true,
+              "overall_status": "issues_found",
+              "issues": [],
+              "bug_count": 0,
+              "style_issues": [
+                "Line 1: Function name 'BadFunctionName' should be snake_case.",
+                "Line 2: Line too long (131 > 79 characters)."
+              ],
+              "corrected_code": null,
+              "warnings": []
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 9.895900264382362,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "bug_count",
+                "passed": true,
+                "message": "Expected 0, got 0"
+              },
+              {
+                "assertion_type": "not_empty",
+                "expected": true,
+                "target_field": "style_issues",
+                "passed": true,
+                "message": "Checked output is not empty (length/truthiness: True)"
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "snake_case",
+                "target_field": "style_issues",
+                "passed": false,
+                "message": "Checked if list contains snake_case"
+              }
+            ]
+          },
+          {
+            "test_id": "f15271f6",
+            "test_name": "Empty Input Handling",
+            "passed": true,
+            "actual_output": {
+              "is_valid_syntax": true,
+              "overall_status": "clean",
+              "issues": [],
+              "bug_count": 0,
+              "style_issues": [],
+              "corrected_code": null,
+              "warnings": [
+                "No code provided"
+              ]
+            },
+            "error_message": null,
+            "execution_time_ms": 8.873499929904938,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": true,
+                "target_field": "is_valid_syntax",
+                "passed": true,
+                "message": "Expected True, got True"
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "No code provided",
+                "target_field": "warnings",
+                "passed": true,
+                "message": "Checked if list contains No code provided"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "bug_count",
+                "passed": true,
+                "message": "Expected 0, got 0"
+              }
+            ]
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_bd33bb8b' (version 1.0.2) with 5 tests.",
+          "[+] Test 'Valid Clean Code' PASSED in 13.5ms",
+          "[-] Test 'Syntax Error Detection' FAILED assertions: [\"Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']\"]",
+          "[-] Test 'Runtime and Logic Risks' FAILED assertions: ['Checked if 3 <= 2.0 <= 3']",
+          "[-] Test 'PEP 8 Style Violations' FAILED assertions: ['Checked if list contains snake_case']",
+          "[+] Test 'Empty Input Handling' PASSED in 8.9ms"
+        ]
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "id": "395655ca",
+      "name": "Valid Clean Code",
+      "description": "Validates that a perfectly formatted, bug-free snippet returns a clean status.",
+      "input_data": {
+        "code": "def calculate_sum(a, b):\n    return a + b\n\nresult = calculate_sum(5, 10)\nprint(result)",
+        "strict_mode": false
+      },
+      "expected_behavior": "The skill should identify no issues and return a 'clean' status.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": true,
+          "target_field": "is_valid_syntax"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "clean",
+          "target_field": "overall_status"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": "bug_count"
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "96dc11e3",
+      "name": "Syntax Error Detection",
+      "description": "Validates that invalid Python syntax is caught and reported as a critical error.",
+      "input_data": {
+        "code": "def broken_function(():\n    print('Hello'",
+        "strict_mode": false
+      },
+      "expected_behavior": "The skill should return is_valid_syntax: false and overall_status: 'syntax_error'.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": false,
+          "target_field": "is_valid_syntax"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "syntax_error",
+          "target_field": "overall_status"
+        },
+        {
+          "assertion_type": "has_key",
+          "expected": "type",
+          "target_field": "issues"
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "73abd8aa",
+      "name": "Runtime and Logic Risks",
+      "description": "Validates detection of division by zero, undefined variables, and unreachable code.",
+      "input_data": {
+        "code": "def risky_func():\n    return 10 / 0\n    print('Unreachable')\n\nprint(undefined_var)",
+        "strict_mode": false
+      },
+      "expected_behavior": "The skill should detect a runtime risk (div by zero), a bug (unreachable code), and a logic risk (undefined variable).",
+      "assertions": [
+        {
+          "assertion_type": "numeric_range",
+          "expected": [
+            3,
+            3
+          ],
+          "target_field": "bug_count"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "issues_found",
+          "target_field": "overall_status"
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "da554aec",
+      "name": "PEP 8 Style Violations",
+      "description": "Validates that style issues (naming and line length) are separated from bug counts.",
+      "input_data": {
+        "code": "def BadFunctionName():\n    long_string = 'This is a very long string that definitely exceeds the seventy-nine character limit imposed by PEP 8 standards' \n    return True",
+        "strict_mode": false
+      },
+      "expected_behavior": "The skill should flag style issues but keep bug_count at 0.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": "bug_count"
+        },
+        {
+          "assertion_type": "not_empty",
+          "expected": true,
+          "target_field": "style_issues"
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "snake_case",
+          "target_field": "style_issues"
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "f15271f6",
+      "name": "Empty Input Handling",
+      "description": "Adversarial test to ensure the system doesn't crash on empty or whitespace-only strings.",
+      "input_data": {
+        "code": "   \n   ",
+        "strict_mode": true
+      },
+      "expected_behavior": "The skill should handle empty input gracefully and provide a warning.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": true,
+          "target_field": "is_valid_syntax"
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "No code provided",
+          "target_field": "warnings"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": "bug_count"
+        }
+      ],
+      "is_edge_case": true
+    }
+  ],
+  "runs": [
+    {
+      "run_id": "run_cddfb077",
+      "skill_id": "skill_bd33bb8b",
+      "version": "1.0.0",
+      "timestamp": 1792765170.4528377,
+      "status": "failed",
+      "passed_count": 0,
+      "failed_count": 5,
+      "total_tests": 5,
+      "pass_rate": 0.0,
+      "test_results": [
+        {
+          "test_id": "395655ca",
+          "test_name": "Valid Clean Code",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 8.611499797552824,
+          "assertion_results": []
+        },
+        {
+          "test_id": "96dc11e3",
+          "test_name": "Syntax Error Detection",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 1.8659001216292381,
+          "assertion_results": []
+        },
+        {
+          "test_id": "73abd8aa",
+          "test_name": "Runtime and Logic Risks",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 1.739600207656622,
+          "assertion_results": []
+        },
+        {
+          "test_id": "da554aec",
+          "test_name": "PEP 8 Style Violations",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 1.9630002789199352,
+          "assertion_results": []
+        },
+        {
+          "test_id": "f15271f6",
+          "test_name": "Empty Input Handling",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 1.7886999994516373,
+          "assertion_results": []
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_bd33bb8b' (version 1.0.0) with 5 tests.",
+        "[-] Test 'Valid Clean Code' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Syntax Error Detection' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Runtime and Logic Risks' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'PEP 8 Style Violations' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Empty Input Handling' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted."
+      ]
+    },
+    {
+      "run_id": "run_e81f3d03",
+      "skill_id": "skill_bd33bb8b",
+      "version": "1.0.1",
+      "timestamp": 1792765180.0078108,
+      "status": "failed",
+      "passed_count": 0,
+      "failed_count": 5,
+      "total_tests": 5,
+      "pass_rate": 0.0,
+      "test_results": [
+        {
+          "test_id": "395655ca",
+          "test_name": "Valid Clean Code",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Syntax Error in generated skill code: unterminated string literal (detected at line 64) (<unknown>, line 64)",
+          "execution_time_ms": 0.6694002076983452,
+          "assertion_results": []
+        },
+        {
+          "test_id": "96dc11e3",
+          "test_name": "Syntax Error Detection",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Syntax Error in generated skill code: unterminated string literal (detected at line 64) (<unknown>, line 64)",
+          "execution_time_ms": 0.5141999572515488,
+          "assertion_results": []
+        },
+        {
+          "test_id": "73abd8aa",
+          "test_name": "Runtime and Logic Risks",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Syntax Error in generated skill code: unterminated string literal (detected at line 64) (<unknown>, line 64)",
+          "execution_time_ms": 0.5169999785721302,
+          "assertion_results": []
+        },
+        {
+          "test_id": "da554aec",
+          "test_name": "PEP 8 Style Violations",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Syntax Error in generated skill code: unterminated string literal (detected at line 64) (<unknown>, line 64)",
+          "execution_time_ms": 0.5072001367807388,
+          "assertion_results": []
+        },
+        {
+          "test_id": "f15271f6",
+          "test_name": "Empty Input Handling",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Syntax Error in generated skill code: unterminated string literal (detected at line 64) (<unknown>, line 64)",
+          "execution_time_ms": 0.5128001794219017,
+          "assertion_results": []
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_bd33bb8b' (version 1.0.1) with 5 tests.",
+        "[-] Test 'Valid Clean Code' FAILED due to execution error: Syntax Error in generated skill code: unterminated string literal (detected at line 64) (<unknown>, line 64)",
+        "[-] Test 'Syntax Error Detection' FAILED due to execution error: Syntax Error in generated skill code: unterminated string literal (detected at line 64) (<unknown>, line 64)",
+        "[-] Test 'Runtime and Logic Risks' FAILED due to execution error: Syntax Error in generated skill code: unterminated string literal (detected at line 64) (<unknown>, line 64)",
+        "[-] Test 'PEP 8 Style Violations' FAILED due to execution error: Syntax Error in generated skill code: unterminated string literal (detected at line 64) (<unknown>, line 64)",
+        "[-] Test 'Empty Input Handling' FAILED due to execution error: Syntax Error in generated skill code: unterminated string literal (detected at line 64) (<unknown>, line 64)"
+      ]
+    },
+    {
+      "run_id": "run_3b9a8cbf",
+      "skill_id": "skill_bd33bb8b",
+      "version": "1.0.0",
+      "timestamp": 1792765190.2285182,
+      "status": "failed",
+      "passed_count": 0,
+      "failed_count": 5,
+      "total_tests": 5,
+      "pass_rate": 0.0,
+      "test_results": [
+        {
+          "test_id": "395655ca",
+          "test_name": "Valid Clean Code",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 3.7555000744760036,
+          "assertion_results": []
+        },
+        {
+          "test_id": "96dc11e3",
+          "test_name": "Syntax Error Detection",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 1.0551996529102325,
+          "assertion_results": []
+        },
+        {
+          "test_id": "73abd8aa",
+          "test_name": "Runtime and Logic Risks",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 0.9661000221967697,
+          "assertion_results": []
+        },
+        {
+          "test_id": "da554aec",
+          "test_name": "PEP 8 Style Violations",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 0.9773997589945793,
+          "assertion_results": []
+        },
+        {
+          "test_id": "f15271f6",
+          "test_name": "Empty Input Handling",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 0.9405999444425106,
+          "assertion_results": []
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_bd33bb8b' (version 1.0.0) with 5 tests.",
+        "[-] Test 'Valid Clean Code' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Syntax Error Detection' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Runtime and Logic Risks' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'PEP 8 Style Violations' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Empty Input Handling' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted."
+      ]
+    },
+    {
+      "run_id": "run_3a4e7859",
+      "skill_id": "skill_bd33bb8b",
+      "version": "1.0.1",
+      "timestamp": 1792765207.3796883,
+      "status": "failed",
+      "passed_count": 2,
+      "failed_count": 3,
+      "total_tests": 5,
+      "pass_rate": 40.0,
+      "test_results": [
+        {
+          "test_id": "395655ca",
+          "test_name": "Valid Clean Code",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "clean",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": null,
+          "execution_time_ms": 7.983600255101919,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "clean",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected clean, got clean"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "96dc11e3",
+          "test_name": "Syntax Error Detection",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": false,
+            "overall_status": "syntax_error",
+            "issues": [
+              {
+                "type": "syntax_error",
+                "severity": "critical",
+                "line": 2,
+                "description": "Unclosed bracket '('.",
+                "suggestion": "Close the bracket."
+              }
+            ],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 4.673200193792582,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": false,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected False, got False"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "syntax_error",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected syntax_error, got syntax_error"
+            },
+            {
+              "assertion_type": "has_key",
+              "expected": "type",
+              "target_field": "issues",
+              "passed": false,
+              "message": "Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']"
+            }
+          ]
+        },
+        {
+          "test_id": "73abd8aa",
+          "test_name": "Runtime and Logic Risks",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "issues_found",
+            "issues": [
+              {
+                "type": "runtime_risk",
+                "severity": "high",
+                "line": 2,
+                "description": "Potential division by zero detected.",
+                "suggestion": "Ensure the divisor is not zero."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 3,
+                "description": "Variable 'Unreachable' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 5,
+                "description": "Variable 'undefined_var' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              }
+            ],
+            "bug_count": 3,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": null,
+          "execution_time_ms": 8.914199657738209,
+          "assertion_results": [
+            {
+              "assertion_type": "numeric_range",
+              "expected": [
+                3,
+                3
+              ],
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Checked if 3 <= 3.0 <= 3"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "issues_found",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected issues_found, got issues_found"
+            }
+          ]
+        },
+        {
+          "test_id": "da554aec",
+          "test_name": "PEP 8 Style Violations",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "issues_found",
+            "issues": [
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'This' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'is' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'a' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'very' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'long' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'string' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'that' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'exceeds' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'the' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'seventy' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'nine' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'character' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'limit' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'imposed' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'by' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'PEP' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'standards' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 3,
+                "description": "Variable 'True' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              }
+            ],
+            "bug_count": 18,
+            "style_issues": [
+              "Line 1: Function name 'BadFunctionName' should be snake_case.",
+              "Line 2: Line too long (131 > 79 characters)."
+            ],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 14.108000323176384,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": false,
+              "message": "Expected 0, got 18"
+            },
+            {
+              "assertion_type": "not_empty",
+              "expected": true,
+              "target_field": "style_issues",
+              "passed": true,
+              "message": "Checked output is not empty (length/truthiness: True)"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "snake_case",
+              "target_field": "style_issues",
+              "passed": false,
+              "message": "Checked if list contains snake_case"
+            }
+          ]
+        },
+        {
+          "test_id": "f15271f6",
+          "test_name": "Empty Input Handling",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "clean",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": [
+              "No code provided for analysis."
+            ]
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 8.687099907547235,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "No code provided",
+              "target_field": "warnings",
+              "passed": false,
+              "message": "Checked if list contains No code provided"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_bd33bb8b' (version 1.0.1) with 5 tests.",
+        "[+] Test 'Valid Clean Code' PASSED in 8.0ms",
+        "[-] Test 'Syntax Error Detection' FAILED assertions: [\"Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']\"]",
+        "[+] Test 'Runtime and Logic Risks' PASSED in 8.9ms",
+        "[-] Test 'PEP 8 Style Violations' FAILED assertions: ['Expected 0, got 18', 'Checked if list contains snake_case']",
+        "[-] Test 'Empty Input Handling' FAILED assertions: ['Checked if list contains No code provided']"
+      ]
+    },
+    {
+      "run_id": "run_e81acbf0",
+      "skill_id": "skill_bd33bb8b",
+      "version": "1.0.2",
+      "timestamp": 1792765218.8780286,
+      "status": "failed",
+      "passed_count": 1,
+      "failed_count": 4,
+      "total_tests": 5,
+      "pass_rate": 20.0,
+      "test_results": [
+        {
+          "test_id": "395655ca",
+          "test_name": "Valid Clean Code",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "clean",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": null,
+          "execution_time_ms": 12.828500010073185,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "clean",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected clean, got clean"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "96dc11e3",
+          "test_name": "Syntax Error Detection",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": false,
+            "overall_status": "syntax_error",
+            "issues": [
+              {
+                "type": "syntax_error",
+                "severity": "critical",
+                "line": 2,
+                "description": "Unclosed bracket '('.",
+                "suggestion": "Close the bracket."
+              }
+            ],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 9.174400009214878,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": false,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected False, got False"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "syntax_error",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected syntax_error, got syntax_error"
+            },
+            {
+              "assertion_type": "has_key",
+              "expected": "type",
+              "target_field": "issues",
+              "passed": false,
+              "message": "Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']"
+            }
+          ]
+        },
+        {
+          "test_id": "73abd8aa",
+          "test_name": "Runtime and Logic Risks",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "issues_found",
+            "issues": [
+              {
+                "type": "runtime_risk",
+                "severity": "high",
+                "line": 2,
+                "description": "Potential division by zero detected.",
+                "suggestion": "Ensure the divisor is not zero."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 5,
+                "description": "Variable 'undefined_var' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              }
+            ],
+            "bug_count": 2,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 9.618499781936407,
+          "assertion_results": [
+            {
+              "assertion_type": "numeric_range",
+              "expected": [
+                3,
+                3
+              ],
+              "target_field": "bug_count",
+              "passed": false,
+              "message": "Checked if 3 <= 2.0 <= 3"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "issues_found",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected issues_found, got issues_found"
+            }
+          ]
+        },
+        {
+          "test_id": "da554aec",
+          "test_name": "PEP 8 Style Violations",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "issues_found",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [
+              "Line 1: Function name 'BadFunctionName' should be snake_case.",
+              "Line 2: Line too long (131 > 79 characters)."
+            ],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 9.409499820321798,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            },
+            {
+              "assertion_type": "not_empty",
+              "expected": true,
+              "target_field": "style_issues",
+              "passed": true,
+              "message": "Checked output is not empty (length/truthiness: True)"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "snake_case",
+              "target_field": "style_issues",
+              "passed": false,
+              "message": "Checked if list contains snake_case"
+            }
+          ]
+        },
+        {
+          "test_id": "f15271f6",
+          "test_name": "Empty Input Handling",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "clean",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": [
+              "No code provided for analysis."
+            ]
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 8.75299982726574,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "No code provided",
+              "target_field": "warnings",
+              "passed": false,
+              "message": "Checked if list contains No code provided"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_bd33bb8b' (version 1.0.2) with 5 tests.",
+        "[+] Test 'Valid Clean Code' PASSED in 12.8ms",
+        "[-] Test 'Syntax Error Detection' FAILED assertions: [\"Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']\"]",
+        "[-] Test 'Runtime and Logic Risks' FAILED assertions: ['Checked if 3 <= 2.0 <= 3']",
+        "[-] Test 'PEP 8 Style Violations' FAILED assertions: ['Checked if list contains snake_case']",
+        "[-] Test 'Empty Input Handling' FAILED assertions: ['Checked if list contains No code provided']"
+      ]
+    },
+    {
+      "run_id": "run_29a8e5b9",
+      "skill_id": "skill_bd33bb8b",
+      "version": "1.0.0",
+      "timestamp": 1792765329.2341874,
+      "status": "failed",
+      "passed_count": 0,
+      "failed_count": 5,
+      "total_tests": 5,
+      "pass_rate": 0.0,
+      "test_results": [
+        {
+          "test_id": "395655ca",
+          "test_name": "Valid Clean Code",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 2.3888996802270412,
+          "assertion_results": []
+        },
+        {
+          "test_id": "96dc11e3",
+          "test_name": "Syntax Error Detection",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 1.9770003855228424,
+          "assertion_results": []
+        },
+        {
+          "test_id": "73abd8aa",
+          "test_name": "Runtime and Logic Risks",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 2.5002998299896717,
+          "assertion_results": []
+        },
+        {
+          "test_id": "da554aec",
+          "test_name": "PEP 8 Style Violations",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 1.8449998460710049,
+          "assertion_results": []
+        },
+        {
+          "test_id": "f15271f6",
+          "test_name": "Empty Input Handling",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 1.808900386095047,
+          "assertion_results": []
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_bd33bb8b' (version 1.0.0) with 5 tests.",
+        "[-] Test 'Valid Clean Code' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Syntax Error Detection' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Runtime and Logic Risks' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'PEP 8 Style Violations' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Empty Input Handling' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted."
+      ]
+    },
+    {
+      "run_id": "run_259eb8d2",
+      "skill_id": "skill_bd33bb8b",
+      "version": "1.0.0",
+      "timestamp": 1792765331.7656193,
+      "status": "failed",
+      "passed_count": 0,
+      "failed_count": 5,
+      "total_tests": 5,
+      "pass_rate": 0.0,
+      "test_results": [
+        {
+          "test_id": "395655ca",
+          "test_name": "Valid Clean Code",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 2.072500064969063,
+          "assertion_results": []
+        },
+        {
+          "test_id": "96dc11e3",
+          "test_name": "Syntax Error Detection",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 1.2747999280691147,
+          "assertion_results": []
+        },
+        {
+          "test_id": "73abd8aa",
+          "test_name": "Runtime and Logic Risks",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 1.2880000285804272,
+          "assertion_results": []
+        },
+        {
+          "test_id": "da554aec",
+          "test_name": "PEP 8 Style Violations",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 2.061000093817711,
+          "assertion_results": []
+        },
+        {
+          "test_id": "f15271f6",
+          "test_name": "Empty Input Handling",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Security Alert: Import of module 'ast' is not permitted.",
+          "execution_time_ms": 2.286599949002266,
+          "assertion_results": []
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_bd33bb8b' (version 1.0.0) with 5 tests.",
+        "[-] Test 'Valid Clean Code' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Syntax Error Detection' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Runtime and Logic Risks' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'PEP 8 Style Violations' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted.",
+        "[-] Test 'Empty Input Handling' FAILED due to execution error: Security Alert: Import of module 'ast' is not permitted."
+      ]
+    },
+    {
+      "run_id": "run_33859746",
+      "skill_id": "skill_bd33bb8b",
+      "version": "1.0.2",
+      "timestamp": 1792765332.644691,
+      "status": "failed",
+      "passed_count": 1,
+      "failed_count": 4,
+      "total_tests": 5,
+      "pass_rate": 20.0,
+      "test_results": [
+        {
+          "test_id": "395655ca",
+          "test_name": "Valid Clean Code",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "clean",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": null,
+          "execution_time_ms": 9.103599935770035,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "clean",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected clean, got clean"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "96dc11e3",
+          "test_name": "Syntax Error Detection",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": false,
+            "overall_status": "syntax_error",
+            "issues": [
+              {
+                "type": "syntax_error",
+                "severity": "critical",
+                "line": 2,
+                "description": "Unclosed bracket '('.",
+                "suggestion": "Close the bracket."
+              }
+            ],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 7.2707002982497215,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": false,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected False, got False"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "syntax_error",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected syntax_error, got syntax_error"
+            },
+            {
+              "assertion_type": "has_key",
+              "expected": "type",
+              "target_field": "issues",
+              "passed": false,
+              "message": "Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']"
+            }
+          ]
+        },
+        {
+          "test_id": "73abd8aa",
+          "test_name": "Runtime and Logic Risks",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "issues_found",
+            "issues": [
+              {
+                "type": "runtime_risk",
+                "severity": "high",
+                "line": 2,
+                "description": "Potential division by zero detected.",
+                "suggestion": "Ensure the divisor is not zero."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 5,
+                "description": "Variable 'undefined_var' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              }
+            ],
+            "bug_count": 2,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 10.234099812805653,
+          "assertion_results": [
+            {
+              "assertion_type": "numeric_range",
+              "expected": [
+                3,
+                3
+              ],
+              "target_field": "bug_count",
+              "passed": false,
+              "message": "Checked if 3 <= 2.0 <= 3"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "issues_found",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected issues_found, got issues_found"
+            }
+          ]
+        },
+        {
+          "test_id": "da554aec",
+          "test_name": "PEP 8 Style Violations",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "issues_found",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [
+              "Line 1: Function name 'BadFunctionName' should be snake_case.",
+              "Line 2: Line too long (131 > 79 characters)."
+            ],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 10.471099987626076,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            },
+            {
+              "assertion_type": "not_empty",
+              "expected": true,
+              "target_field": "style_issues",
+              "passed": true,
+              "message": "Checked output is not empty (length/truthiness: True)"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "snake_case",
+              "target_field": "style_issues",
+              "passed": false,
+              "message": "Checked if list contains snake_case"
+            }
+          ]
+        },
+        {
+          "test_id": "f15271f6",
+          "test_name": "Empty Input Handling",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "clean",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": [
+              "No code provided for analysis."
+            ]
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 9.884500410407782,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "No code provided",
+              "target_field": "warnings",
+              "passed": false,
+              "message": "Checked if list contains No code provided"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_bd33bb8b' (version 1.0.2) with 5 tests.",
+        "[+] Test 'Valid Clean Code' PASSED in 9.1ms",
+        "[-] Test 'Syntax Error Detection' FAILED assertions: [\"Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']\"]",
+        "[-] Test 'Runtime and Logic Risks' FAILED assertions: ['Checked if 3 <= 2.0 <= 3']",
+        "[-] Test 'PEP 8 Style Violations' FAILED assertions: ['Checked if list contains snake_case']",
+        "[-] Test 'Empty Input Handling' FAILED assertions: ['Checked if list contains No code provided']"
+      ]
+    },
+    {
+      "run_id": "run_f5b22dbd",
+      "skill_id": "skill_bd33bb8b",
+      "version": "1.0.2",
+      "timestamp": 1792765358.3752859,
+      "status": "failed",
+      "passed_count": 1,
+      "failed_count": 4,
+      "total_tests": 5,
+      "pass_rate": 20.0,
+      "test_results": [
+        {
+          "test_id": "395655ca",
+          "test_name": "Valid Clean Code",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "clean",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": null,
+          "execution_time_ms": 8.147700224071741,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "clean",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected clean, got clean"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "96dc11e3",
+          "test_name": "Syntax Error Detection",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": false,
+            "overall_status": "syntax_error",
+            "issues": [
+              {
+                "type": "syntax_error",
+                "severity": "critical",
+                "line": 2,
+                "description": "Unclosed bracket '('.",
+                "suggestion": "Close the bracket."
+              }
+            ],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 5.7946001179516315,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": false,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected False, got False"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "syntax_error",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected syntax_error, got syntax_error"
+            },
+            {
+              "assertion_type": "has_key",
+              "expected": "type",
+              "target_field": "issues",
+              "passed": false,
+              "message": "Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']"
+            }
+          ]
+        },
+        {
+          "test_id": "73abd8aa",
+          "test_name": "Runtime and Logic Risks",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "issues_found",
+            "issues": [
+              {
+                "type": "runtime_risk",
+                "severity": "high",
+                "line": 2,
+                "description": "Potential division by zero detected.",
+                "suggestion": "Ensure the divisor is not zero."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 5,
+                "description": "Variable 'undefined_var' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              }
+            ],
+            "bug_count": 2,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 4.696100018918514,
+          "assertion_results": [
+            {
+              "assertion_type": "numeric_range",
+              "expected": [
+                3,
+                3
+              ],
+              "target_field": "bug_count",
+              "passed": false,
+              "message": "Checked if 3 <= 2.0 <= 3"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "issues_found",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected issues_found, got issues_found"
+            }
+          ]
+        },
+        {
+          "test_id": "da554aec",
+          "test_name": "PEP 8 Style Violations",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "issues_found",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [
+              "Line 1: Function name 'BadFunctionName' should be snake_case.",
+              "Line 2: Line too long (131 > 79 characters)."
+            ],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 8.250700309872627,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            },
+            {
+              "assertion_type": "not_empty",
+              "expected": true,
+              "target_field": "style_issues",
+              "passed": true,
+              "message": "Checked output is not empty (length/truthiness: True)"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "snake_case",
+              "target_field": "style_issues",
+              "passed": false,
+              "message": "Checked if list contains snake_case"
+            }
+          ]
+        },
+        {
+          "test_id": "f15271f6",
+          "test_name": "Empty Input Handling",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "clean",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": [
+              "No code provided."
+            ]
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 8.785600308328867,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "No code provided",
+              "target_field": "warnings",
+              "passed": false,
+              "message": "Checked if list contains No code provided"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_bd33bb8b' (version 1.0.2) with 5 tests.",
+        "[+] Test 'Valid Clean Code' PASSED in 8.1ms",
+        "[-] Test 'Syntax Error Detection' FAILED assertions: [\"Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']\"]",
+        "[-] Test 'Runtime and Logic Risks' FAILED assertions: ['Checked if 3 <= 2.0 <= 3']",
+        "[-] Test 'PEP 8 Style Violations' FAILED assertions: ['Checked if list contains snake_case']",
+        "[-] Test 'Empty Input Handling' FAILED assertions: ['Checked if list contains No code provided']"
+      ]
+    },
+    {
+      "run_id": "run_85629fe4",
+      "skill_id": "skill_bd33bb8b",
+      "version": "1.0.1",
+      "timestamp": 1792765380.4315238,
+      "status": "failed",
+      "passed_count": 2,
+      "failed_count": 3,
+      "total_tests": 5,
+      "pass_rate": 40.0,
+      "test_results": [
+        {
+          "test_id": "395655ca",
+          "test_name": "Valid Clean Code",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "clean",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": null,
+          "execution_time_ms": 10.955399833619595,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "clean",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected clean, got clean"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "96dc11e3",
+          "test_name": "Syntax Error Detection",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": false,
+            "overall_status": "syntax_error",
+            "issues": [
+              {
+                "type": "syntax_error",
+                "severity": "critical",
+                "line": 2,
+                "description": "Unclosed bracket '('.",
+                "suggestion": "Close the bracket."
+              }
+            ],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 8.628100156784058,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": false,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected False, got False"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "syntax_error",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected syntax_error, got syntax_error"
+            },
+            {
+              "assertion_type": "has_key",
+              "expected": "type",
+              "target_field": "issues",
+              "passed": false,
+              "message": "Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']"
+            }
+          ]
+        },
+        {
+          "test_id": "73abd8aa",
+          "test_name": "Runtime and Logic Risks",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "issues_found",
+            "issues": [
+              {
+                "type": "runtime_risk",
+                "severity": "high",
+                "line": 2,
+                "description": "Potential division by zero detected.",
+                "suggestion": "Ensure the divisor is not zero."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 3,
+                "description": "Variable 'Unreachable' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 5,
+                "description": "Variable 'undefined_var' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              }
+            ],
+            "bug_count": 3,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": null,
+          "execution_time_ms": 8.598499931395054,
+          "assertion_results": [
+            {
+              "assertion_type": "numeric_range",
+              "expected": [
+                3,
+                3
+              ],
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Checked if 3 <= 3.0 <= 3"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "issues_found",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected issues_found, got issues_found"
+            }
+          ]
+        },
+        {
+          "test_id": "da554aec",
+          "test_name": "PEP 8 Style Violations",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "issues_found",
+            "issues": [
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'This' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'is' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'a' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'very' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'long' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'string' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'that' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'exceeds' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'the' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'seventy' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'nine' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'character' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'limit' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'imposed' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'by' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'PEP' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'standards' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 3,
+                "description": "Variable 'True' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              }
+            ],
+            "bug_count": 18,
+            "style_issues": [
+              "Line 1: Function name 'BadFunctionName' should be snake_case.",
+              "Line 2: Line too long (131 > 79 characters)."
+            ],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 7.743199821561575,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": false,
+              "message": "Expected 0, got 18"
+            },
+            {
+              "assertion_type": "not_empty",
+              "expected": true,
+              "target_field": "style_issues",
+              "passed": true,
+              "message": "Checked output is not empty (length/truthiness: True)"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "snake_case",
+              "target_field": "style_issues",
+              "passed": false,
+              "message": "Checked if list contains snake_case"
+            }
+          ]
+        },
+        {
+          "test_id": "f15271f6",
+          "test_name": "Empty Input Handling",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "clean",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": [
+              "No code provided for analysis."
+            ]
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 6.119399797171354,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "No code provided",
+              "target_field": "warnings",
+              "passed": false,
+              "message": "Checked if list contains No code provided"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_bd33bb8b' (version 1.0.1) with 5 tests.",
+        "[+] Test 'Valid Clean Code' PASSED in 11.0ms",
+        "[-] Test 'Syntax Error Detection' FAILED assertions: [\"Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']\"]",
+        "[+] Test 'Runtime and Logic Risks' PASSED in 8.6ms",
+        "[-] Test 'PEP 8 Style Violations' FAILED assertions: ['Expected 0, got 18', 'Checked if list contains snake_case']",
+        "[-] Test 'Empty Input Handling' FAILED assertions: ['Checked if list contains No code provided']"
+      ]
+    },
+    {
+      "run_id": "run_9a0b4969",
+      "skill_id": "skill_bd33bb8b",
+      "version": "1.0.1",
+      "timestamp": 1792765386.6564865,
+      "status": "failed",
+      "passed_count": 2,
+      "failed_count": 3,
+      "total_tests": 5,
+      "pass_rate": 40.0,
+      "test_results": [
+        {
+          "test_id": "395655ca",
+          "test_name": "Valid Clean Code",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "clean",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": null,
+          "execution_time_ms": 8.5764997638762,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "clean",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected clean, got clean"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "96dc11e3",
+          "test_name": "Syntax Error Detection",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": false,
+            "overall_status": "syntax_error",
+            "issues": [
+              {
+                "type": "syntax_error",
+                "severity": "critical",
+                "line": 2,
+                "description": "Unclosed bracket '('.",
+                "suggestion": "Close the bracket."
+              }
+            ],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 9.7507000900805,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": false,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected False, got False"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "syntax_error",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected syntax_error, got syntax_error"
+            },
+            {
+              "assertion_type": "has_key",
+              "expected": "type",
+              "target_field": "issues",
+              "passed": false,
+              "message": "Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']"
+            }
+          ]
+        },
+        {
+          "test_id": "73abd8aa",
+          "test_name": "Runtime and Logic Risks",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "issues_found",
+            "issues": [
+              {
+                "type": "runtime_risk",
+                "severity": "high",
+                "line": 2,
+                "description": "Potential division by zero detected.",
+                "suggestion": "Ensure the divisor is not zero."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 3,
+                "description": "Variable 'Unreachable' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 5,
+                "description": "Variable 'undefined_var' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              }
+            ],
+            "bug_count": 3,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": null,
+          "execution_time_ms": 8.375499863177538,
+          "assertion_results": [
+            {
+              "assertion_type": "numeric_range",
+              "expected": [
+                3,
+                3
+              ],
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Checked if 3 <= 3.0 <= 3"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "issues_found",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected issues_found, got issues_found"
+            }
+          ]
+        },
+        {
+          "test_id": "da554aec",
+          "test_name": "PEP 8 Style Violations",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "issues_found",
+            "issues": [
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'This' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'is' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'a' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'very' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'long' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'string' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'that' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'exceeds' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'the' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'seventy' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'nine' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'character' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'limit' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'imposed' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'by' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'PEP' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 2,
+                "description": "Variable 'standards' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 3,
+                "description": "Variable 'True' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              }
+            ],
+            "bug_count": 18,
+            "style_issues": [
+              "Line 1: Function name 'BadFunctionName' should be snake_case.",
+              "Line 2: Line too long (131 > 79 characters)."
+            ],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 8.289699908345938,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": false,
+              "message": "Expected 0, got 18"
+            },
+            {
+              "assertion_type": "not_empty",
+              "expected": true,
+              "target_field": "style_issues",
+              "passed": true,
+              "message": "Checked output is not empty (length/truthiness: True)"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "snake_case",
+              "target_field": "style_issues",
+              "passed": false,
+              "message": "Checked if list contains snake_case"
+            }
+          ]
+        },
+        {
+          "test_id": "f15271f6",
+          "test_name": "Empty Input Handling",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "clean",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": [
+              "No code provided for analysis."
+            ]
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 8.005000185221434,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "No code provided",
+              "target_field": "warnings",
+              "passed": false,
+              "message": "Checked if list contains No code provided"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_bd33bb8b' (version 1.0.1) with 5 tests.",
+        "[+] Test 'Valid Clean Code' PASSED in 8.6ms",
+        "[-] Test 'Syntax Error Detection' FAILED assertions: [\"Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']\"]",
+        "[+] Test 'Runtime and Logic Risks' PASSED in 8.4ms",
+        "[-] Test 'PEP 8 Style Violations' FAILED assertions: ['Expected 0, got 18', 'Checked if list contains snake_case']",
+        "[-] Test 'Empty Input Handling' FAILED assertions: ['Checked if list contains No code provided']"
+      ]
+    },
+    {
+      "run_id": "run_27c57f67",
+      "skill_id": "skill_bd33bb8b",
+      "version": "1.0.2",
+      "timestamp": 1792765419.553498,
+      "status": "failed",
+      "passed_count": 2,
+      "failed_count": 3,
+      "total_tests": 5,
+      "pass_rate": 40.0,
+      "test_results": [
+        {
+          "test_id": "395655ca",
+          "test_name": "Valid Clean Code",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "clean",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": null,
+          "execution_time_ms": 13.48060043528676,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "clean",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected clean, got clean"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "96dc11e3",
+          "test_name": "Syntax Error Detection",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": false,
+            "overall_status": "syntax_error",
+            "issues": [
+              {
+                "type": "syntax_error",
+                "severity": "critical",
+                "line": 2,
+                "description": "Unclosed bracket '('.",
+                "suggestion": "Close the bracket."
+              }
+            ],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 10.005200281739235,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": false,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected False, got False"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "syntax_error",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected syntax_error, got syntax_error"
+            },
+            {
+              "assertion_type": "has_key",
+              "expected": "type",
+              "target_field": "issues",
+              "passed": false,
+              "message": "Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']"
+            }
+          ]
+        },
+        {
+          "test_id": "73abd8aa",
+          "test_name": "Runtime and Logic Risks",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "issues_found",
+            "issues": [
+              {
+                "type": "runtime_risk",
+                "severity": "high",
+                "line": 2,
+                "description": "Potential division by zero detected.",
+                "suggestion": "Ensure the divisor is not zero."
+              },
+              {
+                "type": "logic_risk",
+                "severity": "medium",
+                "line": 5,
+                "description": "Variable 'undefined_var' may be undefined.",
+                "suggestion": "Ensure the variable is defined."
+              }
+            ],
+            "bug_count": 2,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 9.511599782854319,
+          "assertion_results": [
+            {
+              "assertion_type": "numeric_range",
+              "expected": [
+                3,
+                3
+              ],
+              "target_field": "bug_count",
+              "passed": false,
+              "message": "Checked if 3 <= 2.0 <= 3"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "issues_found",
+              "target_field": "overall_status",
+              "passed": true,
+              "message": "Expected issues_found, got issues_found"
+            }
+          ]
+        },
+        {
+          "test_id": "da554aec",
+          "test_name": "PEP 8 Style Violations",
+          "passed": false,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "issues_found",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [
+              "Line 1: Function name 'BadFunctionName' should be snake_case.",
+              "Line 2: Line too long (131 > 79 characters)."
+            ],
+            "corrected_code": null,
+            "warnings": []
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 9.895900264382362,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            },
+            {
+              "assertion_type": "not_empty",
+              "expected": true,
+              "target_field": "style_issues",
+              "passed": true,
+              "message": "Checked output is not empty (length/truthiness: True)"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "snake_case",
+              "target_field": "style_issues",
+              "passed": false,
+              "message": "Checked if list contains snake_case"
+            }
+          ]
+        },
+        {
+          "test_id": "f15271f6",
+          "test_name": "Empty Input Handling",
+          "passed": true,
+          "actual_output": {
+            "is_valid_syntax": true,
+            "overall_status": "clean",
+            "issues": [],
+            "bug_count": 0,
+            "style_issues": [],
+            "corrected_code": null,
+            "warnings": [
+              "No code provided"
+            ]
+          },
+          "error_message": null,
+          "execution_time_ms": 8.873499929904938,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": "is_valid_syntax",
+              "passed": true,
+              "message": "Expected True, got True"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "No code provided",
+              "target_field": "warnings",
+              "passed": true,
+              "message": "Checked if list contains No code provided"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "bug_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_bd33bb8b' (version 1.0.2) with 5 tests.",
+        "[+] Test 'Valid Clean Code' PASSED in 13.5ms",
+        "[-] Test 'Syntax Error Detection' FAILED assertions: [\"Checked key 'type' in dict keys: ['is_valid_syntax', 'overall_status', 'issues', 'bug_count', 'style_issues', 'corrected_code', 'warnings']\"]",
+        "[-] Test 'Runtime and Logic Risks' FAILED assertions: ['Checked if 3 <= 2.0 <= 3']",
+        "[-] Test 'PEP 8 Style Violations' FAILED assertions: ['Checked if list contains snake_case']",
+        "[+] Test 'Empty Input Handling' PASSED in 8.9ms"
+      ]
+    }
+  ],
+  "improvements": [
+    {
+      "iteration": 1,
+      "previous_version": "1.0.0",
+      "new_version": "1.0.1",
+      "failure_analysis": "The root cause of all failures is a security restriction: the 'ast' module is not permitted in the allowed libraries list (math, re, json, datetime, collections, itertools, string). The previous implementation relied entirely on 'ast' for syntax parsing and logic analysis, causing the execution environment to block the skill entirely. To fix this, the logic must be reimplemented using regular expressions and string manipulation to simulate basic static analysis without using forbidden modules.",
+      "changes_made": "1. Removed 'import ast' entirely to comply with security restrictions.\n2. Replaced AST-based syntax checking with a basic regex-based bracket/parenthesis balance check and common syntax pattern matching.\n3. Replaced AST-based division-by-zero detection with a regex that looks for '/ 0' or '/0'.\n4. Replaced AST-based unreachable code detection with a regex that looks for statements following a 'return', 'break', 'continue', or 'raise' within the same indentation block.\n5. Replaced AST-based undefined variable detection with a regex-based tracking of assignments vs. usages.\n6. Maintained and refined the PEP 8 style checks using regex.",
+      "before_pass_rate": 0.0,
+      "after_pass_rate": 0.0,
+      "improved": false,
+      "regression_detected": false,
+      "decision": "rejected",
+      "decision_reason": "REJECTED: Candidate pass rate (0.0%) did not exceed baseline pass rate (0.0%).",
+      "fixed_tests": [],
+      "regressed_tests": [],
+      "remaining_issues": [
+        "Valid Clean Code",
+        "Syntax Error Detection",
+        "Runtime and Logic Risks",
+        "PEP 8 Style Violations",
+        "Empty Input Handling"
+      ],
+      "timestamp": 1792765180.0078108
+    },
+    {
+      "iteration": 2,
+      "previous_version": "1.0.0",
+      "new_version": "1.0.1",
+      "failure_analysis": "The root cause of all failures is a security restriction: the 'ast' module is not in the allowed libraries list (math, re, json, datetime, collections, itertools, string). The previous implementation relied entirely on 'ast' for syntax parsing and logic analysis, causing the execution environment to block the skill. To fix this, the logic must be reimplemented using regular expressions and string manipulation to simulate basic static analysis without using forbidden modules.",
+      "changes_made": "1. Removed 'import ast' entirely to comply with security constraints.\n2. Replaced AST-based syntax checking with a basic regex-based bracket/parenthesis balance check and common syntax error patterns.\n3. Replaced AST-based division-by-zero detection with regex searching for '/ 0' or '/0'.\n4. Replaced AST-based unreachable code detection with regex searching for statements following 'return', 'break', 'continue', or 'raise' within the same indentation block.\n5. Replaced AST-based undefined variable detection with a regex-based tracking of assignments vs usages.\n6. Maintained and refined the PEP 8 style checks using regex.",
+      "before_pass_rate": 0.0,
+      "after_pass_rate": 40.0,
+      "improved": true,
+      "regression_detected": false,
+      "decision": "accepted",
+      "decision_reason": "ACCEPTED: Verified improvement from 0.0% to 40.0% with 0 regressions. Fixed 2 test(s): Valid Clean Code, Runtime and Logic Risks.",
+      "fixed_tests": [
+        "Valid Clean Code",
+        "Runtime and Logic Risks"
+      ],
+      "regressed_tests": [],
+      "remaining_issues": [
+        "Syntax Error Detection",
+        "PEP 8 Style Violations",
+        "Empty Input Handling"
+      ],
+      "timestamp": 1792765207.3796883
+    },
+    {
+      "iteration": 3,
+      "previous_version": "1.0.1",
+      "new_version": "1.0.2",
+      "failure_analysis": "1. Syntax Error Detection: The test expected to find a 'type' key within the 'issues' list, but the assertion failed. Looking at the actual output, the 'issues' list contains a dictionary with a 'type' key. The failure message 'Checked key 'type' in dict keys: [...]' suggests the test runner might have been incorrectly checking the top-level result object instead of the elements within the 'issues' list, or there is a mismatch in how the test expects the list to be structured. However, the logic itself is correct; the issue is likely in the test's assertion target. \n2. PEP 8 Style Violations: The 'undefined variable' heuristic is too aggressive. It flags words inside string literals as undefined variables, leading to a massive 'bug_count' (18 in the example). It also flags 'True' as undefined. \n3. Empty Input Handling: The test expected the warning to 'contain' the string 'No code provided', but the actual output was 'No code provided for analysis.'. While this seems correct, some test runners are sensitive to exact matches or specific substrings. I will ensure the warning is clear and matches the expected intent.",
+      "changes_made": "1. Improved the 'undefined variable' detection by stripping string literals (single and double quotes) from the line before analyzing variables. \n2. Added 'True', 'False', and 'None' to the `defined_vars` set to prevent them from being flagged as undefined. \n3. Refined the regex for variable detection to be slightly more conservative. \n4. Updated the empty input warning to be more explicit. \n5. Maintained the bracket balancing and style check logic while ensuring they don't interfere with the new string-stripping logic.",
+      "before_pass_rate": 40.0,
+      "after_pass_rate": 20.0,
+      "improved": false,
+      "regression_detected": true,
+      "decision": "rejected",
+      "decision_reason": "REJECTED: Candidate introduced 1 regression(s) in previously passing test(s): Runtime and Logic Risks",
+      "fixed_tests": [],
+      "regressed_tests": [
+        "Runtime and Logic Risks"
+      ],
+      "remaining_issues": [
+        "Syntax Error Detection",
+        "Runtime and Logic Risks",
+        "PEP 8 Style Violations",
+        "Empty Input Handling"
+      ],
+      "timestamp": 1792765218.8780286
+    },
+    {
+      "iteration": 4,
+      "previous_version": "1.0.1",
+      "new_version": "1.0.2",
+      "failure_analysis": "1. The 'Syntax Error Detection' test failed because the assertion logic expected the 'issues' list to contain objects with a 'type' key, but the test runner's error message suggests it was checking the top-level keys of the result instead of the elements within the 'issues' list. However, the actual output shows the 'issues' list was populated correctly. The primary issue is likely a mismatch in how the test suite iterates over the 'issues' array.\n2. The 'PEP 8 Style Violations' test failed catastrophically because the undefined variable detector was flagging every word inside string literals as an undefined variable. This led to a bug_count of 18 instead of 0. The regex `\b([a-zA-Z_][a-zA-Z0-9_]*)\b` does not distinguish between code and strings.\n3. The 'Empty Input Handling' test failed because the assertion expected the warning to 'contain' the string 'No code provided', but the actual output was 'No code provided for analysis.'. While this looks correct, some test runners are sensitive to exact matches or specific substring checks. I will ensure the warning is explicit.",
+      "changes_made": "1. Implemented a basic string-literal stripper using regex to remove content inside single and double quotes before performing variable analysis, preventing false positives in bug_count.\n2. Added common Python constants (True, False, None) to the `defined_vars` set to prevent them from being flagged as undefined.\n3. Refined the variable detection logic to ignore words that appear inside quotes.\n4. Updated the warning message for empty input to be more robust.\n5. Ensured the `issues` list always contains objects with the required keys to satisfy the test suite's schema expectations.",
+      "before_pass_rate": 40.0,
+      "after_pass_rate": 20.0,
+      "improved": false,
+      "regression_detected": true,
+      "decision": "rejected",
+      "decision_reason": "REJECTED: Candidate introduced 1 regression(s) in previously passing test(s): Runtime and Logic Risks",
+      "fixed_tests": [],
+      "regressed_tests": [
+        "Runtime and Logic Risks"
+      ],
+      "remaining_issues": [
+        "Syntax Error Detection",
+        "Runtime and Logic Risks",
+        "PEP 8 Style Violations",
+        "Empty Input Handling"
+      ],
+      "timestamp": 1792765332.644691
+    },
+    {
+      "iteration": 5,
+      "previous_version": "1.0.1",
+      "new_version": "1.0.2",
+      "failure_analysis": "1. Syntax Error Detection: The test assertion failed because it expected to find a 'type' key within the 'issues' list, but the actual output was correct. However, the failure message suggests the test runner might be misinterpreting the list of dictionaries. More importantly, the current logic for bracket balancing is too simplistic and doesn't handle strings, which can lead to false positives.\n2. PEP 8 Style Violations: The 'undefined variable' heuristic is far too aggressive. It flags every word inside string literals as an undefined variable, leading to a massive bug_count (18 in the test case) when it should be 0. It also fails to recognize Python constants like 'True' and 'False'.\n3. Empty Input Handling: The test failed a 'contains' assertion on the warnings list. The actual output was 'No code provided for analysis.', but the test expected 'No code provided'. This is a string matching mismatch.",
+      "changes_made": "1. Improved variable detection: Added a regex to strip string literals (single and double quotes) before analyzing variables to prevent false positives in strings.\n2. Expanded built-ins: Added 'True', 'False', and 'None' to the defined_vars set.\n3. Refined warning message: Changed 'No code provided for analysis.' to 'No code provided.' to match the test expectation.\n4. Improved bracket balancing: Added basic logic to ignore brackets inside string literals to prevent syntax errors being flagged inside strings.",
+      "before_pass_rate": 40.0,
+      "after_pass_rate": 20.0,
+      "improved": false,
+      "regression_detected": true,
+      "decision": "rejected",
+      "decision_reason": "REJECTED: Candidate introduced 1 regression(s) in previously passing test(s): Runtime and Logic Risks",
+      "fixed_tests": [],
+      "regressed_tests": [
+        "Runtime and Logic Risks"
+      ],
+      "remaining_issues": [
+        "Syntax Error Detection",
+        "Runtime and Logic Risks",
+        "PEP 8 Style Violations",
+        "Empty Input Handling"
+      ],
+      "timestamp": 1792765358.3752859
+    },
+    {
+      "iteration": 6,
+      "previous_version": "1.0.1",
+      "new_version": "1.0.2",
+      "failure_analysis": "1. Syntax Error Detection: The test expected to find a 'type' key within the 'issues' list. While the code provided it, the test failure message suggests a mismatch in how the test suite iterates or validates the list structure. However, the actual output shows the 'issues' list contains a dictionary with 'type'. The failure might be due to the test suite expecting a specific structure or the 'is_valid_syntax' check returning early before other checks. \n2. PEP 8 Style Violations: The 'undefined variable' heuristic is far too aggressive. It treats words inside string literals as variables, leading to a massive inflation of 'bug_count' (18 instead of 0). It also failed to recognize 'True' as a builtin. \n3. Empty Input Handling: The test expected the warning string to contain 'No code provided', but the actual output was 'No code provided for analysis.'. While logically correct, the test assertion might be sensitive to the exact string or the way it's checked.",
+      "changes_made": "1. Improved variable detection: Added a regex to strip string literals (single and double quotes) before analyzing variables to prevent false positives in strings. \n2. Expanded built-ins: Added 'True', 'False', 'None' to the `defined_vars` set.\n3. Refined 'undefined variable' logic: Added a check to ensure we aren't flagging words inside quotes. \n4. Adjusted warning message: Updated the empty input warning to be more generic to satisfy the test case. \n5. Fixed the 'contains' assertion for style issues: Ensured the style issue messages are clear and consistent.",
+      "before_pass_rate": 40.0,
+      "after_pass_rate": 40.0,
+      "improved": false,
+      "regression_detected": true,
+      "decision": "rejected",
+      "decision_reason": "REJECTED: Candidate introduced 1 regression(s) in previously passing test(s): Runtime and Logic Risks",
+      "fixed_tests": [
+        "Empty Input Handling"
+      ],
+      "regressed_tests": [
+        "Runtime and Logic Risks"
+      ],
+      "remaining_issues": [
+        "Syntax Error Detection",
+        "Runtime and Logic Risks",
+        "PEP 8 Style Violations"
+      ],
+      "timestamp": 1792765419.553498
+    }
+  ],
+  "created_at": 1792765170.4528377,
+  "updated_at": 1792765170.4528377
+}

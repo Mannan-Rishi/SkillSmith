@@ -1,0 +1,1449 @@
+{
+  "id": "skill_34a1b373",
+  "name": "PII Masking for Emails and Pakistani Phone Numbers",
+  "category": "Security & Privacy",
+  "current_version": "1.0.0",
+  "versions": {
+    "1.0.0": {
+      "version": "1.0.0",
+      "parent_version": null,
+      "manifest": {
+        "name": "PII Masking for Emails and Pakistani Phone Numbers",
+        "slug": "pii-masking-pk-emails-phones",
+        "description": "Detects and masks email addresses and Pakistani mobile phone numbers within a given text to protect personally identifiable information while preserving the surrounding context.",
+        "category": "Security & Privacy",
+        "version": "1.0.0",
+        "parent_version": null,
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "input_text": "The raw text string containing potential PII to be sanitized (String)"
+        },
+        "outputs": {
+          "sanitized_text": "The text with emails and Pakistani phone numbers replaced by masks (String)",
+          "email_count": "The total number of email addresses masked (Integer)",
+          "phone_count": "The total number of Pakistani phone numbers masked (Integer)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    # Extract input and handle None/Empty cases\n    input_text = inputs.get('input_text')\n    if input_text is None:\n        return {\n            \"sanitized_text\": \"\",\n            \"email_count\": 0,\n            \"phone_count\": 0\n        }\n    \n    if not isinstance(input_text, str):\n        input_text = str(input_text)\n\n    if not input_text:\n        return {\n            \"sanitized_text\": \"\",\n            \"email_count\": 0,\n            \"phone_count\": 0\n        }\n\n    # Regex for Email addresses\n    # Simple but effective pattern for most common email formats\n    email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+'\n    \n    # Regex for Pakistani Phone Numbers\n    # Matches: +923XXXXXXXXX or 03XXXXXXXXX\n    # \\b ensures we don't match numbers embedded in longer digit strings\n    phone_pattern = r'(\\+923\\d{9}|03\\d{9})\\b'\n\n    # Find all matches to get counts\n    emails_found = re.findall(email_pattern, input_text)\n    phones_found = re.findall(phone_pattern, input_text)\n\n    # Perform masking\n    # Mask phones first to avoid potential conflicts with email characters if any\n    sanitized = re.sub(phone_pattern, '[PHONE_MASKED]', input_text)\n    sanitized = re.sub(email_pattern, '[EMAIL_MASKED]', sanitized)\n\n    return {\n        \"sanitized_text\": sanitized,\n        \"email_count\": len(emails_found),\n        \"phone_count\": len(phones_found)\n    }"
+      },
+      "skill_md": "---\nname: PII Masking for Emails and Pakistani Phone Numbers\nslug: pii-masking-pk-emails-phones\ncategory: Security & Privacy\nversion: 1.0.0\n---\n\n# PII Masking for Emails and Pakistani Phone Numbers\n\n## Overview\nThis skill detects and masks email addresses and Pakistani mobile phone numbers within a provided text. It ensures that personally identifiable information (PII) is sanitized while preserving the surrounding context, punctuation, and whitespace.\n\n## Usage\nUse this skill when processing user-generated content, logs, or documents that may contain sensitive contact information specific to the Pakistani region.\n\n### Inputs\n- `input_text` (String): The raw text string containing potential PII to be sanitized.\n\n### Outputs\n- `sanitized_text` (String): The text with emails and Pakistani phone numbers replaced by masks.\n- `email_count` (Integer): The total number of email addresses masked.\n- `phone_count` (Integer): The total number of Pakistani phone numbers masked.\n\n## Steps\n1. **Input Validation**: Check if the input text is provided and is a string.\n2. **Email Detection**: Use a regular expression to identify standard email formats.\n3. **Phone Detection**: Use a regular expression to identify Pakistani mobile numbers starting with `03` or `+923` followed by 9 digits.\n4. **Masking**: Replace identified patterns with `[EMAIL_MASKED]` and `[PHONE_MASKED]` respectively.\n5. **Counting**: Calculate the total number of replacements for each category.\n\n## Error Handling\n- If `input_text` is `None` or an empty string, the skill returns an empty string and zero counts.\n- If no PII is found, the original text is returned with zero counts.\n- Non-string inputs are handled gracefully by converting them to strings or returning default empty values.",
+      "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    # Extract input and handle None/Empty cases\n    input_text = inputs.get('input_text')\n    if input_text is None:\n        return {\n            \"sanitized_text\": \"\",\n            \"email_count\": 0,\n            \"phone_count\": 0\n        }\n    \n    if not isinstance(input_text, str):\n        input_text = str(input_text)\n\n    if not input_text:\n        return {\n            \"sanitized_text\": \"\",\n            \"email_count\": 0,\n            \"phone_count\": 0\n        }\n\n    # Regex for Email addresses\n    # Simple but effective pattern for most common email formats\n    email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+'\n    \n    # Regex for Pakistani Phone Numbers\n    # Matches: +923XXXXXXXXX or 03XXXXXXXXX\n    # \\b ensures we don't match numbers embedded in longer digit strings\n    phone_pattern = r'(\\+923\\d{9}|03\\d{9})\\b'\n\n    # Find all matches to get counts\n    emails_found = re.findall(email_pattern, input_text)\n    phones_found = re.findall(phone_pattern, input_text)\n\n    # Perform masking\n    # Mask phones first to avoid potential conflicts with email characters if any\n    sanitized = re.sub(phone_pattern, '[PHONE_MASKED]', input_text)\n    sanitized = re.sub(email_pattern, '[EMAIL_MASKED]', sanitized)\n\n    return {\n        \"sanitized_text\": sanitized,\n        \"email_count\": len(emails_found),\n        \"phone_count\": len(phones_found)\n    }",
+      "created_at": 1792761852.078911,
+      "latest_run": {
+        "run_id": "run_51da2ab4",
+        "skill_id": "skill_34a1b373",
+        "version": "1.0.0",
+        "timestamp": 1792761852.1017382,
+        "status": "failed",
+        "passed_count": 4,
+        "failed_count": 1,
+        "total_tests": 5,
+        "pass_rate": 80.0,
+        "test_results": [
+          {
+            "test_id": "97a76bb6",
+            "test_name": "Standard PII Detection",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "Contact me at [EMAIL_MASKED] or call [PHONE_MASKED]. For international, use [PHONE_MASKED].",
+              "email_count": 1,
+              "phone_count": 2
+            },
+            "error_message": null,
+            "execution_time_ms": 12.757400050759315,
+            "assertion_results": [
+              {
+                "assertion_type": "contains",
+                "expected": "[EMAIL_MASKED]",
+                "target_field": "sanitized_text",
+                "passed": true,
+                "message": "Checked if text contains '[EMAIL_MASKED]'"
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "[PHONE_MASKED]",
+                "target_field": "sanitized_text",
+                "passed": true,
+                "message": "Checked if text contains '[PHONE_MASKED]'"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 1,
+                "target_field": "email_count",
+                "passed": true,
+                "message": "Expected 1, got 1"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 2,
+                "target_field": "phone_count",
+                "passed": true,
+                "message": "Expected 2, got 2"
+              }
+            ]
+          },
+          {
+            "test_id": "1497249c",
+            "test_name": "No PII Present",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "Hello, this is a normal message with no sensitive data.",
+              "email_count": 0,
+              "phone_count": 0
+            },
+            "error_message": null,
+            "execution_time_ms": 2.1059000864624977,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "Hello, this is a normal message with no sensitive data.",
+                "target_field": "sanitized_text",
+                "passed": true,
+                "message": "Expected Hello, this is a normal message with no sensitive data., got Hello, this is a normal message with no sensitive data."
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "email_count",
+                "passed": true,
+                "message": "Expected 0, got 0"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "phone_count",
+                "passed": true,
+                "message": "Expected 0, got 0"
+              }
+            ]
+          },
+          {
+            "test_id": "ed1c68c4",
+            "test_name": "Empty and Null Input",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "",
+              "email_count": 0,
+              "phone_count": 0
+            },
+            "error_message": null,
+            "execution_time_ms": 2.258799970149994,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "",
+                "target_field": "sanitized_text",
+                "passed": true,
+                "message": "Expected , got "
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "email_count",
+                "passed": true,
+                "message": "Expected 0, got 0"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "phone_count",
+                "passed": true,
+                "message": "Expected 0, got 0"
+              }
+            ]
+          },
+          {
+            "test_id": "bc3fc8ee",
+            "test_name": "Adversarial Number Formatting",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix).",
+              "email_count": 0,
+              "phone_count": 0
+            },
+            "error_message": null,
+            "execution_time_ms": 2.2700997069478035,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix).",
+                "target_field": "sanitized_text",
+                "passed": true,
+                "message": "Expected Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix)., got Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix)."
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "phone_count",
+                "passed": true,
+                "message": "Expected 0, got 0"
+              }
+            ]
+          },
+          {
+            "test_id": "c44b7774",
+            "test_name": "Multiple PII in Dense Text",
+            "passed": false,
+            "actual_output": {
+              "sanitized_text": "Emails: [EMAIL_MASKED], [EMAIL_MASKED]; Phones: [PHONE_MASKED], [PHONE_MASKED].",
+              "email_count": 2,
+              "phone_count": 2
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 2.1424000151455402,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": 2,
+                "target_field": "email_count",
+                "passed": true,
+                "message": "Expected 2, got 2"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 2,
+                "target_field": "phone_count",
+                "passed": true,
+                "message": "Expected 2, got 2"
+              },
+              {
+                "assertion_type": "regex",
+                "expected": "(\\[EMAIL_MASKED\\]){2}",
+                "target_field": "sanitized_text",
+                "passed": false,
+                "message": "Regex /(\\[EMAIL_MASKED\\]){2}/ match on output"
+              }
+            ]
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_34a1b373' (version 1.0.0) with 5 tests.",
+          "[+] Test 'Standard PII Detection' PASSED in 12.8ms",
+          "[+] Test 'No PII Present' PASSED in 2.1ms",
+          "[+] Test 'Empty and Null Input' PASSED in 2.3ms",
+          "[+] Test 'Adversarial Number Formatting' PASSED in 2.3ms",
+          "[-] Test 'Multiple PII in Dense Text' FAILED assertions: ['Regex /(\\\\[EMAIL_MASKED\\\\]){2}/ match on output']"
+        ]
+      }
+    },
+    "1.0.1": {
+      "version": "1.0.1",
+      "parent_version": "1.0.0",
+      "manifest": {
+        "name": "PII Masking for Emails and Pakistani Phone Numbers",
+        "slug": "pii-masking-pk-emails-phones",
+        "description": "Detects and masks email addresses and Pakistani mobile phone numbers within a given text to protect personally identifiable information while preserving the surrounding context.",
+        "category": "Security & Privacy",
+        "version": "1.0.1",
+        "parent_version": "1.0.0",
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "input_text": "The raw text string containing potential PII to be sanitized (String)"
+        },
+        "outputs": {
+          "sanitized_text": "The text with emails and Pakistani phone numbers replaced by masks (String)",
+          "email_count": "The total number of email addresses masked (Integer)",
+          "phone_count": "The total number of Pakistani phone numbers masked (Integer)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    # Extract input and handle None/Empty cases\n    input_text = inputs.get('input_text')\n    if input_text is None:\n        return {\n            \"sanitized_text\": \"\",\n            \"email_count\": 0,\n            \"phone_count\": 0\n        }\n    \n    if not isinstance(input_text, str):\n        input_text = str(input_text)\n\n    if not input_text:\n        return {\n            \"sanitized_text\": \"\",\n            \"email_count\": 0,\n            \"phone_count\": 0\n        }\n\n    # Regex for Email addresses\n    # Improved to avoid capturing trailing punctuation like dots at the end of sentences\n    email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]*[a-zA-Z0-9-]'\n    \n    # Regex for Pakistani Phone Numbers\n    # Matches: +923XXXXXXXXX or 03XXXXXXXXX\n    # Uses word boundaries to ensure we don't match numbers embedded in longer digit strings\n    phone_pattern = r'\\b(\\+923\\d{9}|03\\d{9})\\b'\n\n    # Find all matches to get counts\n    emails_found = re.findall(email_pattern, input_text)\n    phones_found = re.findall(phone_pattern, input_text)\n\n    # Perform masking\n    # Mask phones first to avoid potential conflicts\n    sanitized = re.sub(phone_pattern, '[PHONE_MASKED]', input_text)\n    sanitized = re.sub(email_pattern, '[EMAIL_MASKED]', sanitized)\n\n    return {\n        \"sanitized_text\": sanitized,\n        \"email_count\": len(emails_found),\n        \"phone_count\": len(phones_found)\n    }"
+      },
+      "skill_md": "# PII Masker\n\nThis skill identifies and masks Personally Identifiable Information (PII), specifically email addresses and Pakistani phone numbers, from a given text.\n\n## Inputs\n- `input_text` (string): The text to be sanitized.\n\n## Outputs\n- `sanitized_text` (string): The text with PII replaced by `[EMAIL_MASKED]` and `[PHONE_MASKED]`.\n- `email_count` (integer): Total number of email addresses found.\n- `phone_count` (integer): Total number of Pakistani phone numbers found.",
+      "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    # Extract input and handle None/Empty cases\n    input_text = inputs.get('input_text')\n    if input_text is None:\n        return {\n            \"sanitized_text\": \"\",\n            \"email_count\": 0,\n            \"phone_count\": 0\n        }\n    \n    if not isinstance(input_text, str):\n        input_text = str(input_text)\n\n    if not input_text:\n        return {\n            \"sanitized_text\": \"\",\n            \"email_count\": 0,\n            \"phone_count\": 0\n        }\n\n    # Regex for Email addresses\n    # Improved to avoid capturing trailing punctuation like dots at the end of sentences\n    email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]*[a-zA-Z0-9-]'\n    \n    # Regex for Pakistani Phone Numbers\n    # Matches: +923XXXXXXXXX or 03XXXXXXXXX\n    # Uses word boundaries to ensure we don't match numbers embedded in longer digit strings\n    phone_pattern = r'\\b(\\+923\\d{9}|03\\d{9})\\b'\n\n    # Find all matches to get counts\n    emails_found = re.findall(email_pattern, input_text)\n    phones_found = re.findall(phone_pattern, input_text)\n\n    # Perform masking\n    # Mask phones first to avoid potential conflicts\n    sanitized = re.sub(phone_pattern, '[PHONE_MASKED]', input_text)\n    sanitized = re.sub(email_pattern, '[EMAIL_MASKED]', sanitized)\n\n    return {\n        \"sanitized_text\": sanitized,\n        \"email_count\": len(emails_found),\n        \"phone_count\": len(phones_found)\n    }",
+      "created_at": 1792762426.34345,
+      "latest_run": {
+        "run_id": "run_65f44349",
+        "skill_id": "skill_34a1b373",
+        "version": "1.0.1",
+        "timestamp": 1792762426.3579292,
+        "status": "failed",
+        "passed_count": 3,
+        "failed_count": 2,
+        "total_tests": 5,
+        "pass_rate": 60.0,
+        "test_results": [
+          {
+            "test_id": "97a76bb6",
+            "test_name": "Standard PII Detection",
+            "passed": false,
+            "actual_output": {
+              "sanitized_text": "Contact me at [EMAIL_MASKED] or call [PHONE_MASKED]. For international, use +923129876543.",
+              "email_count": 1,
+              "phone_count": 1
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 3.2696998678147793,
+            "assertion_results": [
+              {
+                "assertion_type": "contains",
+                "expected": "[EMAIL_MASKED]",
+                "target_field": "sanitized_text",
+                "passed": true,
+                "message": "Checked if text contains '[EMAIL_MASKED]'"
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "[PHONE_MASKED]",
+                "target_field": "sanitized_text",
+                "passed": true,
+                "message": "Checked if text contains '[PHONE_MASKED]'"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 1,
+                "target_field": "email_count",
+                "passed": true,
+                "message": "Expected 1, got 1"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 2,
+                "target_field": "phone_count",
+                "passed": false,
+                "message": "Expected 2, got 1"
+              }
+            ]
+          },
+          {
+            "test_id": "1497249c",
+            "test_name": "No PII Present",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "Hello, this is a normal message with no sensitive data.",
+              "email_count": 0,
+              "phone_count": 0
+            },
+            "error_message": null,
+            "execution_time_ms": 2.5253002531826496,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "Hello, this is a normal message with no sensitive data.",
+                "target_field": "sanitized_text",
+                "passed": true,
+                "message": "Expected Hello, this is a normal message with no sensitive data., got Hello, this is a normal message with no sensitive data."
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "email_count",
+                "passed": true,
+                "message": "Expected 0, got 0"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "phone_count",
+                "passed": true,
+                "message": "Expected 0, got 0"
+              }
+            ]
+          },
+          {
+            "test_id": "ed1c68c4",
+            "test_name": "Empty and Null Input",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "",
+              "email_count": 0,
+              "phone_count": 0
+            },
+            "error_message": null,
+            "execution_time_ms": 2.4071000516414642,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "",
+                "target_field": "sanitized_text",
+                "passed": true,
+                "message": "Expected , got "
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "email_count",
+                "passed": true,
+                "message": "Expected 0, got 0"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "phone_count",
+                "passed": true,
+                "message": "Expected 0, got 0"
+              }
+            ]
+          },
+          {
+            "test_id": "bc3fc8ee",
+            "test_name": "Adversarial Number Formatting",
+            "passed": true,
+            "actual_output": {
+              "sanitized_text": "Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix).",
+              "email_count": 0,
+              "phone_count": 0
+            },
+            "error_message": null,
+            "execution_time_ms": 2.4492000229656696,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix).",
+                "target_field": "sanitized_text",
+                "passed": true,
+                "message": "Expected Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix)., got Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix)."
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "phone_count",
+                "passed": true,
+                "message": "Expected 0, got 0"
+              }
+            ]
+          },
+          {
+            "test_id": "c44b7774",
+            "test_name": "Multiple PII in Dense Text",
+            "passed": false,
+            "actual_output": {
+              "sanitized_text": "Emails: [EMAIL_MASKED], [EMAIL_MASKED]; Phones: [PHONE_MASKED], +923004445556.",
+              "email_count": 2,
+              "phone_count": 1
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 2.1926001645624638,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": 2,
+                "target_field": "email_count",
+                "passed": true,
+                "message": "Expected 2, got 2"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 2,
+                "target_field": "phone_count",
+                "passed": false,
+                "message": "Expected 2, got 1"
+              },
+              {
+                "assertion_type": "regex",
+                "expected": "(\\[EMAIL_MASKED\\]){2}",
+                "target_field": "sanitized_text",
+                "passed": false,
+                "message": "Regex /(\\[EMAIL_MASKED\\]){2}/ match on output"
+              }
+            ]
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_34a1b373' (version 1.0.1) with 5 tests.",
+          "[-] Test 'Standard PII Detection' FAILED assertions: ['Expected 2, got 1']",
+          "[+] Test 'No PII Present' PASSED in 2.5ms",
+          "[+] Test 'Empty and Null Input' PASSED in 2.4ms",
+          "[+] Test 'Adversarial Number Formatting' PASSED in 2.4ms",
+          "[-] Test 'Multiple PII in Dense Text' FAILED assertions: ['Expected 2, got 1', 'Regex /(\\\\[EMAIL_MASKED\\\\]){2}/ match on output']"
+        ]
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "id": "97a76bb6",
+      "name": "Standard PII Detection",
+      "description": "Validates that both local and international Pakistani phone numbers and standard emails are correctly masked and counted.",
+      "input_data": {
+        "input_text": "Contact me at user@example.com or call 03001234567. For international, use +923129876543."
+      },
+      "expected_behavior": "Masks one email and two phone numbers, preserving the rest of the sentence.",
+      "assertions": [
+        {
+          "assertion_type": "contains",
+          "expected": "[EMAIL_MASKED]",
+          "target_field": "sanitized_text"
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "[PHONE_MASKED]",
+          "target_field": "sanitized_text"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 1,
+          "target_field": "email_count"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 2,
+          "target_field": "phone_count"
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "1497249c",
+      "name": "No PII Present",
+      "description": "Ensures that text without any PII is returned unchanged with zero counts.",
+      "input_data": {
+        "input_text": "Hello, this is a normal message with no sensitive data."
+      },
+      "expected_behavior": "Returns the original text and zero for both counts.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": "Hello, this is a normal message with no sensitive data.",
+          "target_field": "sanitized_text"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": "email_count"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": "phone_count"
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "ed1c68c4",
+      "name": "Empty and Null Input",
+      "description": "Validates the system's robustness when receiving empty strings or null values.",
+      "input_data": {
+        "input_text": ""
+      },
+      "expected_behavior": "Returns empty string and zero counts without crashing.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": "",
+          "target_field": "sanitized_text"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": "email_count"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": "phone_count"
+        }
+      ],
+      "is_edge_case": true
+    },
+    {
+      "id": "bc3fc8ee",
+      "name": "Adversarial Number Formatting",
+      "description": "Tests if the regex incorrectly masks numbers that look like Pakistani phones but are too long or too short.",
+      "input_data": {
+        "input_text": "Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix)."
+      },
+      "expected_behavior": "Should not mask any of these numbers as they do not fit the 11-digit local or 13-digit international format.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": "Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix).",
+          "target_field": "sanitized_text"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": "phone_count"
+        }
+      ],
+      "is_edge_case": true
+    },
+    {
+      "id": "c44b7774",
+      "name": "Multiple PII in Dense Text",
+      "description": "Validates handling of multiple emails and phones in a single string with varying punctuation.",
+      "input_data": {
+        "input_text": "Emails: a@b.com, c@d.net; Phones: 03001112223, +923004445556."
+      },
+      "expected_behavior": "Correctly identifies and counts 2 emails and 2 phones.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": 2,
+          "target_field": "email_count"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 2,
+          "target_field": "phone_count"
+        },
+        {
+          "assertion_type": "regex",
+          "expected": "\\[EMAIL_MASKED\\].*\\[EMAIL_MASKED\\]",
+          "target_field": "sanitized_text"
+        }
+      ],
+      "is_edge_case": false
+    }
+  ],
+  "runs": [
+    {
+      "run_id": "run_51da2ab4",
+      "skill_id": "skill_34a1b373",
+      "version": "1.0.0",
+      "timestamp": 1792761852.1017382,
+      "status": "failed",
+      "passed_count": 4,
+      "failed_count": 1,
+      "total_tests": 5,
+      "pass_rate": 80.0,
+      "test_results": [
+        {
+          "test_id": "97a76bb6",
+          "test_name": "Standard PII Detection",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Contact me at [EMAIL_MASKED] or call [PHONE_MASKED]. For international, use [PHONE_MASKED].",
+            "email_count": 1,
+            "phone_count": 2
+          },
+          "error_message": null,
+          "execution_time_ms": 12.757400050759315,
+          "assertion_results": [
+            {
+              "assertion_type": "contains",
+              "expected": "[EMAIL_MASKED]",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Checked if text contains '[EMAIL_MASKED]'"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "[PHONE_MASKED]",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Checked if text contains '[PHONE_MASKED]'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 1,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 1, got 1"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": "phone_count",
+              "passed": true,
+              "message": "Expected 2, got 2"
+            }
+          ]
+        },
+        {
+          "test_id": "1497249c",
+          "test_name": "No PII Present",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Hello, this is a normal message with no sensitive data.",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 2.1059000864624977,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Hello, this is a normal message with no sensitive data.",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Expected Hello, this is a normal message with no sensitive data., got Hello, this is a normal message with no sensitive data."
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "phone_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "ed1c68c4",
+          "test_name": "Empty and Null Input",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 2.258799970149994,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Expected , got "
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "phone_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "bc3fc8ee",
+          "test_name": "Adversarial Number Formatting",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix).",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 2.2700997069478035,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix).",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Expected Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix)., got Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix)."
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "phone_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "c44b7774",
+          "test_name": "Multiple PII in Dense Text",
+          "passed": false,
+          "actual_output": {
+            "sanitized_text": "Emails: [EMAIL_MASKED], [EMAIL_MASKED]; Phones: [PHONE_MASKED], [PHONE_MASKED].",
+            "email_count": 2,
+            "phone_count": 2
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 2.1424000151455402,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 2, got 2"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": "phone_count",
+              "passed": true,
+              "message": "Expected 2, got 2"
+            },
+            {
+              "assertion_type": "regex",
+              "expected": "(\\[EMAIL_MASKED\\]){2}",
+              "target_field": "sanitized_text",
+              "passed": false,
+              "message": "Regex /(\\[EMAIL_MASKED\\]){2}/ match on output"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_34a1b373' (version 1.0.0) with 5 tests.",
+        "[+] Test 'Standard PII Detection' PASSED in 12.8ms",
+        "[+] Test 'No PII Present' PASSED in 2.1ms",
+        "[+] Test 'Empty and Null Input' PASSED in 2.3ms",
+        "[+] Test 'Adversarial Number Formatting' PASSED in 2.3ms",
+        "[-] Test 'Multiple PII in Dense Text' FAILED assertions: ['Regex /(\\\\[EMAIL_MASKED\\\\]){2}/ match on output']"
+      ]
+    },
+    {
+      "run_id": "run_707c2a63",
+      "skill_id": "skill_34a1b373",
+      "version": "1.0.1",
+      "timestamp": 1792761857.3182538,
+      "status": "failed",
+      "passed_count": 3,
+      "failed_count": 2,
+      "total_tests": 5,
+      "pass_rate": 60.0,
+      "test_results": [
+        {
+          "test_id": "97a76bb6",
+          "test_name": "Standard PII Detection",
+          "passed": false,
+          "actual_output": {
+            "sanitized_text": "Contact me at [EMAIL_MASKED] or call [PHONE_MASKED]. For international, use +923129876543.",
+            "email_count": 1,
+            "phone_count": 1
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 1.9290000200271606,
+          "assertion_results": [
+            {
+              "assertion_type": "contains",
+              "expected": "[EMAIL_MASKED]",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Checked if text contains '[EMAIL_MASKED]'"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "[PHONE_MASKED]",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Checked if text contains '[PHONE_MASKED]'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 1,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 1, got 1"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": "phone_count",
+              "passed": false,
+              "message": "Expected 2, got 1"
+            }
+          ]
+        },
+        {
+          "test_id": "1497249c",
+          "test_name": "No PII Present",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Hello, this is a normal message with no sensitive data.",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 1.5036999247968197,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Hello, this is a normal message with no sensitive data.",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Expected Hello, this is a normal message with no sensitive data., got Hello, this is a normal message with no sensitive data."
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "phone_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "ed1c68c4",
+          "test_name": "Empty and Null Input",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 2.2006002254784107,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Expected , got "
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "phone_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "bc3fc8ee",
+          "test_name": "Adversarial Number Formatting",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix).",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 2.345999702811241,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix).",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Expected Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix)., got Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix)."
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "phone_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "c44b7774",
+          "test_name": "Multiple PII in Dense Text",
+          "passed": false,
+          "actual_output": {
+            "sanitized_text": "Emails: [EMAIL_MASKED], [EMAIL_MASKED]; Phones: [PHONE_MASKED], +923004445556.",
+            "email_count": 2,
+            "phone_count": 1
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 2.428800333291292,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 2, got 2"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": "phone_count",
+              "passed": false,
+              "message": "Expected 2, got 1"
+            },
+            {
+              "assertion_type": "regex",
+              "expected": "(\\[EMAIL_MASKED\\]){2}",
+              "target_field": "sanitized_text",
+              "passed": false,
+              "message": "Regex /(\\[EMAIL_MASKED\\]){2}/ match on output"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_34a1b373' (version 1.0.1) with 5 tests.",
+        "[-] Test 'Standard PII Detection' FAILED assertions: ['Expected 2, got 1']",
+        "[+] Test 'No PII Present' PASSED in 1.5ms",
+        "[+] Test 'Empty and Null Input' PASSED in 2.2ms",
+        "[+] Test 'Adversarial Number Formatting' PASSED in 2.3ms",
+        "[-] Test 'Multiple PII in Dense Text' FAILED assertions: ['Expected 2, got 1', 'Regex /(\\\\[EMAIL_MASKED\\\\]){2}/ match on output']"
+      ]
+    },
+    {
+      "run_id": "run_b056aa5c",
+      "skill_id": "skill_34a1b373",
+      "version": "1.0.1",
+      "timestamp": 1792762423.6154463,
+      "status": "failed",
+      "passed_count": 3,
+      "failed_count": 2,
+      "total_tests": 5,
+      "pass_rate": 60.0,
+      "test_results": [
+        {
+          "test_id": "97a76bb6",
+          "test_name": "Standard PII Detection",
+          "passed": false,
+          "actual_output": {
+            "sanitized_text": "Contact me at [EMAIL_MASKED] or call [PHONE_MASKED]. For international, use +923129876543.",
+            "email_count": 1,
+            "phone_count": 1
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 2.8580999933183193,
+          "assertion_results": [
+            {
+              "assertion_type": "contains",
+              "expected": "[EMAIL_MASKED]",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Checked if text contains '[EMAIL_MASKED]'"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "[PHONE_MASKED]",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Checked if text contains '[PHONE_MASKED]'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 1,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 1, got 1"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": "phone_count",
+              "passed": false,
+              "message": "Expected 2, got 1"
+            }
+          ]
+        },
+        {
+          "test_id": "1497249c",
+          "test_name": "No PII Present",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Hello, this is a normal message with no sensitive data.",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 1.996300183236599,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Hello, this is a normal message with no sensitive data.",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Expected Hello, this is a normal message with no sensitive data., got Hello, this is a normal message with no sensitive data."
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "phone_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "ed1c68c4",
+          "test_name": "Empty and Null Input",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 2.2061001509428024,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Expected , got "
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "phone_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "bc3fc8ee",
+          "test_name": "Adversarial Number Formatting",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix).",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 2.1331999450922012,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix).",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Expected Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix)., got Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix)."
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "phone_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "c44b7774",
+          "test_name": "Multiple PII in Dense Text",
+          "passed": false,
+          "actual_output": {
+            "sanitized_text": "Emails: [EMAIL_MASKED], [EMAIL_MASKED]; Phones: [PHONE_MASKED], +923004445556.",
+            "email_count": 2,
+            "phone_count": 1
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 2.708500251173973,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 2, got 2"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": "phone_count",
+              "passed": false,
+              "message": "Expected 2, got 1"
+            },
+            {
+              "assertion_type": "regex",
+              "expected": "(\\[EMAIL_MASKED\\]){2}",
+              "target_field": "sanitized_text",
+              "passed": false,
+              "message": "Regex /(\\[EMAIL_MASKED\\]){2}/ match on output"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_34a1b373' (version 1.0.1) with 5 tests.",
+        "[-] Test 'Standard PII Detection' FAILED assertions: ['Expected 2, got 1']",
+        "[+] Test 'No PII Present' PASSED in 2.0ms",
+        "[+] Test 'Empty and Null Input' PASSED in 2.2ms",
+        "[+] Test 'Adversarial Number Formatting' PASSED in 2.1ms",
+        "[-] Test 'Multiple PII in Dense Text' FAILED assertions: ['Expected 2, got 1', 'Regex /(\\\\[EMAIL_MASKED\\\\]){2}/ match on output']"
+      ]
+    },
+    {
+      "run_id": "run_65f44349",
+      "skill_id": "skill_34a1b373",
+      "version": "1.0.1",
+      "timestamp": 1792762426.3579292,
+      "status": "failed",
+      "passed_count": 3,
+      "failed_count": 2,
+      "total_tests": 5,
+      "pass_rate": 60.0,
+      "test_results": [
+        {
+          "test_id": "97a76bb6",
+          "test_name": "Standard PII Detection",
+          "passed": false,
+          "actual_output": {
+            "sanitized_text": "Contact me at [EMAIL_MASKED] or call [PHONE_MASKED]. For international, use +923129876543.",
+            "email_count": 1,
+            "phone_count": 1
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 3.2696998678147793,
+          "assertion_results": [
+            {
+              "assertion_type": "contains",
+              "expected": "[EMAIL_MASKED]",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Checked if text contains '[EMAIL_MASKED]'"
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "[PHONE_MASKED]",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Checked if text contains '[PHONE_MASKED]'"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 1,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 1, got 1"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": "phone_count",
+              "passed": false,
+              "message": "Expected 2, got 1"
+            }
+          ]
+        },
+        {
+          "test_id": "1497249c",
+          "test_name": "No PII Present",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Hello, this is a normal message with no sensitive data.",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 2.5253002531826496,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Hello, this is a normal message with no sensitive data.",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Expected Hello, this is a normal message with no sensitive data., got Hello, this is a normal message with no sensitive data."
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "phone_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "ed1c68c4",
+          "test_name": "Empty and Null Input",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 2.4071000516414642,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Expected , got "
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "phone_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "bc3fc8ee",
+          "test_name": "Adversarial Number Formatting",
+          "passed": true,
+          "actual_output": {
+            "sanitized_text": "Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix).",
+            "email_count": 0,
+            "phone_count": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 2.4492000229656696,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix).",
+              "target_field": "sanitized_text",
+              "passed": true,
+              "message": "Expected Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix)., got Wrong numbers: 03123 (too short), 0300123456789 (too long), 1234567890 (no prefix)."
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "phone_count",
+              "passed": true,
+              "message": "Expected 0, got 0"
+            }
+          ]
+        },
+        {
+          "test_id": "c44b7774",
+          "test_name": "Multiple PII in Dense Text",
+          "passed": false,
+          "actual_output": {
+            "sanitized_text": "Emails: [EMAIL_MASKED], [EMAIL_MASKED]; Phones: [PHONE_MASKED], +923004445556.",
+            "email_count": 2,
+            "phone_count": 1
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 2.1926001645624638,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": "email_count",
+              "passed": true,
+              "message": "Expected 2, got 2"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 2,
+              "target_field": "phone_count",
+              "passed": false,
+              "message": "Expected 2, got 1"
+            },
+            {
+              "assertion_type": "regex",
+              "expected": "(\\[EMAIL_MASKED\\]){2}",
+              "target_field": "sanitized_text",
+              "passed": false,
+              "message": "Regex /(\\[EMAIL_MASKED\\]){2}/ match on output"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_34a1b373' (version 1.0.1) with 5 tests.",
+        "[-] Test 'Standard PII Detection' FAILED assertions: ['Expected 2, got 1']",
+        "[+] Test 'No PII Present' PASSED in 2.5ms",
+        "[+] Test 'Empty and Null Input' PASSED in 2.4ms",
+        "[+] Test 'Adversarial Number Formatting' PASSED in 2.4ms",
+        "[-] Test 'Multiple PII in Dense Text' FAILED assertions: ['Expected 2, got 1', 'Regex /(\\\\[EMAIL_MASKED\\\\]){2}/ match on output']"
+      ]
+    }
+  ],
+  "improvements": [
+    {
+      "iteration": 1,
+      "previous_version": "1.0.0",
+      "new_version": "1.0.1",
+      "failure_analysis": "The failure in 'Multiple PII in Dense Text' is not due to a logic error in the code, but likely a mismatch in how the test assertion expects the masked tokens to appear or be counted. However, looking at the provided actual output, the code correctly identified 2 emails and 2 phones and masked them. The assertion failure `(\\[EMAIL_MASKED\\]){2}` suggests the test might be expecting the masks to be adjacent or formatted differently, or the regex engine used by the test suite is failing to match the comma-separated masks. To improve robustness, I will refine the email regex to be more precise (avoiding trailing dots) and ensure the phone regex handles potential boundary issues more effectively, although the primary logic is sound.",
+      "changes_made": "1. Updated email regex to prevent capturing trailing periods at the end of sentences (a common PII masking bug). 2. Refined phone regex to ensure it doesn't capture partial numbers from longer digit strings by adding a leading boundary check. 3. Maintained existing logic for null/empty handling to prevent regressions.",
+      "before_pass_rate": 80.0,
+      "after_pass_rate": 60.0,
+      "improved": false,
+      "regression_detected": true,
+      "decision": "accepted",
+      "decision_reason": "",
+      "fixed_tests": [],
+      "regressed_tests": [],
+      "remaining_issues": [
+        "Standard PII Detection",
+        "Multiple PII in Dense Text"
+      ],
+      "timestamp": 1792761857.3182538
+    },
+    {
+      "iteration": 2,
+      "previous_version": "1.0.0",
+      "new_version": "1.0.1",
+      "failure_analysis": "The failure in 'Multiple PII in Dense Text' is not due to a logic error in the code, but rather a misunderstanding of the test assertion. The test expected the regex `(\\[EMAIL_MASKED\\]){2}` to match, which implies it was looking for two consecutive occurrences of the mask without intervening characters. However, the actual output was 'Emails: [EMAIL_MASKED], [EMAIL_MASKED]', where a comma and space separate the masks. To ensure the skill is robust and handles various PII formats (including those with trailing dots in emails which might be captured by the current greedy regex), I will refine the email regex to avoid capturing trailing punctuation and ensure the masking logic remains consistent.",
+      "changes_made": "Refined the email regex to prevent capturing trailing dots (common in sentences) which can lead to incorrect masking or count. Added a check to ensure the phone pattern doesn't accidentally match parts of larger numbers by adding a leading boundary check. The core logic remains the same as the previous version was functionally correct, but the regexes are now more precise to avoid edge-case failures in dense text.",
+      "before_pass_rate": 80.0,
+      "after_pass_rate": 60.0,
+      "improved": false,
+      "regression_detected": true,
+      "decision": "accepted",
+      "decision_reason": "",
+      "fixed_tests": [],
+      "regressed_tests": [],
+      "remaining_issues": [
+        "Standard PII Detection",
+        "Multiple PII in Dense Text"
+      ],
+      "timestamp": 1792762423.6154463
+    },
+    {
+      "iteration": 3,
+      "previous_version": "1.0.0",
+      "new_version": "1.0.1",
+      "failure_analysis": "The failure in 'Multiple PII in Dense Text' is not due to a logic error in the code, but likely a misunderstanding of the test assertion. The actual output correctly masked two emails and two phones, but the test assertion `(\\[EMAIL_MASKED\\]){2}` expects the two masks to be adjacent (consecutive), whereas the output text contains a comma and space between them: `[EMAIL_MASKED], [EMAIL_MASKED]`. However, to ensure the regex patterns are robust and avoid partial matches or overlapping issues, I will refine the email regex to be more precise and ensure the phone regex handles boundaries more strictly to prevent false positives in dense numeric strings.",
+      "changes_made": "1. Refined the email regex to better handle boundary conditions and avoid trailing dots being captured as part of the email. 2. Adjusted the phone regex to use a lookbehind/lookahead or word boundary more effectively to ensure it doesn't capture parts of longer number sequences. 3. Maintained the masking logic which is functionally correct, as the test failure appears to be an overly restrictive regex assertion in the test suite itself, but improved the patterns for general reliability.",
+      "before_pass_rate": 80.0,
+      "after_pass_rate": 60.0,
+      "improved": false,
+      "regression_detected": true,
+      "decision": "accepted",
+      "decision_reason": "",
+      "fixed_tests": [],
+      "regressed_tests": [],
+      "remaining_issues": [
+        "Standard PII Detection",
+        "Multiple PII in Dense Text"
+      ],
+      "timestamp": 1792762426.3579292
+    }
+  ],
+  "created_at": 1792761852.1017382,
+  "updated_at": 1792761852.1017382
+}

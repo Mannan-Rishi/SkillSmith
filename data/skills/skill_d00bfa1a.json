@@ -1,0 +1,684 @@
+{
+  "id": "skill_d00bfa1a",
+  "name": "Pakistani Phone Number Validator and Operator Extractor",
+  "category": "Security & Privacy Auditing",
+  "current_version": "1.0.1",
+  "versions": {
+    "1.0.0": {
+      "version": "1.0.0",
+      "parent_version": null,
+      "manifest": {
+        "name": "Pakistani Phone Number Validator and Operator Extractor",
+        "slug": "pakistan-phone-validator-extractor",
+        "description": "Validates if a given string is a legitimate Pakistani phone number and extracts the network operator prefix.",
+        "category": "Security & Privacy Auditing",
+        "version": "1.0.0",
+        "parent_version": null,
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "phone_number": "The phone number string to be validated (String)"
+        },
+        "outputs": {
+          "is_valid": "Boolean indicating if the number matches Pakistani numbering standards",
+          "operator_code": "The extracted network operator prefix (e.g., '0300', '0345') or null if invalid",
+          "formatted_number": "The number normalized to a standard format (e.g., +923XXXXXXXXX) (String)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    phone_number = inputs.get('phone_number', '')\n    if not isinstance(phone_number, str):\n        return {\"is_valid\": False, \"operator_code\": None, \"formatted_number\": None}\n\n    # Remove common formatting characters\n    clean_number = re.sub(r'\\s+|-|\\(|\\)', '', phone_number)\n\n    # Pattern 1: International format +923XXXXXXXXX (13 chars total)\n    # Pattern 2: Local format 03XXXXXXXXX (11 chars total)\n    \n    is_valid = False\n    operator_code = None\n    formatted_number = None\n\n    if re.fullmatch(r'\\+923\\d{9}', clean_number):\n        is_valid = True\n        # Extract operator code by replacing +92 with 0\n        operator_code = '0' + clean_number[3:5]\n        formatted_number = clean_number\n    elif re.fullmatch(r'03\\d{9}', clean_number):\n        is_valid = True\n        operator_code = clean_number[:4]\n        formatted_number = '+92' + clean_number[1:]\n\n    return {\n        \"is_valid\": is_valid,\n        \"operator_code\": operator_code,\n        \"formatted_number\": formatted_number\n    }"
+      },
+      "skill_md": "---\nname: Pakistani Phone Number Validator and Operator Extractor\nslug: pakistan-phone-validator-extractor\ncategory: Security & Privacy Auditing\nversion: 1.0.0\n---\n\n# Pakistani Phone Number Validator and Operator Extractor\n\n## Overview\nThis skill validates whether a provided string is a legitimate Pakistani mobile phone number. It supports both international (+92) and local (03) formats, ensuring the number adheres to the national numbering plan (11 digits total excluding the country code).\n\n## Usage\nUse this skill to sanitize user input, verify contact details, or identify the network operator prefix for Pakistani mobile numbers.\n\n### Inputs\n- `phone_number` (String): The phone number string to be validated.\n\n### Outputs\n- `is_valid` (Boolean): True if the number matches Pakistani mobile standards, otherwise False.\n- `operator_code` (String|null): The 4-digit operator prefix (e.g., '0300', '0345') if valid, otherwise null.\n- `formatted_number` (String|null): The number normalized to the international format `+923XXXXXXXXX` if valid, otherwise null.\n\n## Steps\n1. **Normalization**: Remove all whitespace, hyphens, and parentheses from the input string.\n2. **Pattern Matching**: Check if the number starts with `+923` followed by 9 digits OR `03` followed by 9 digits.\n3. **Extraction**: Extract the first 4 digits of the local format (e.g., `03XX`) as the operator code.\n4. **Formatting**: Convert the valid number into the standard `+923...` format.\n\n## Error Handling\n- Returns `is_valid: false` for any input that does not match the specific length or prefix requirements.\n- Returns `null` for `operator_code` and `formatted_number` if validation fails.",
+      "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    phone_number = inputs.get('phone_number', '')\n    if not isinstance(phone_number, str):\n        return {\"is_valid\": False, \"operator_code\": None, \"formatted_number\": None}\n\n    # Remove common formatting characters\n    clean_number = re.sub(r'\\s+|-|\\(|\\)', '', phone_number)\n\n    # Pattern 1: International format +923XXXXXXXXX (13 chars total)\n    # Pattern 2: Local format 03XXXXXXXXX (11 chars total)\n    \n    is_valid = False\n    operator_code = None\n    formatted_number = None\n\n    if re.fullmatch(r'\\+923\\d{9}', clean_number):\n        is_valid = True\n        # Extract operator code by replacing +92 with 0\n        operator_code = '0' + clean_number[3:5]\n        formatted_number = clean_number\n    elif re.fullmatch(r'03\\d{9}', clean_number):\n        is_valid = True\n        operator_code = clean_number[:4]\n        formatted_number = '+92' + clean_number[1:]\n\n    return {\n        \"is_valid\": is_valid,\n        \"operator_code\": operator_code,\n        \"formatted_number\": formatted_number\n    }",
+      "created_at": 1792760190.6827362,
+      "latest_run": {
+        "run_id": "run_df782a48",
+        "skill_id": "skill_d00bfa1a",
+        "version": "1.0.0",
+        "timestamp": 1792760190.690889,
+        "status": "failed",
+        "passed_count": 0,
+        "failed_count": 5,
+        "total_tests": 5,
+        "pass_rate": 0.0,
+        "test_results": [
+          {
+            "test_id": "16fec510",
+            "test_name": "Valid Local Format",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Execution Error: __import__ not found\nLogs: ",
+            "execution_time_ms": 1.026500016450882,
+            "assertion_results": []
+          },
+          {
+            "test_id": "ae28099f",
+            "test_name": "Valid International Format",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Execution Error: __import__ not found\nLogs: ",
+            "execution_time_ms": 0.8861999958753586,
+            "assertion_results": []
+          },
+          {
+            "test_id": "19bcc220",
+            "test_name": "Invalid Length - Too Short",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Execution Error: __import__ not found\nLogs: ",
+            "execution_time_ms": 1.4733998104929924,
+            "assertion_results": []
+          },
+          {
+            "test_id": "2e3e8454",
+            "test_name": "Invalid Prefix",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Execution Error: __import__ not found\nLogs: ",
+            "execution_time_ms": 1.8258001655340195,
+            "assertion_results": []
+          },
+          {
+            "test_id": "963c1c1d",
+            "test_name": "Formatting Characters Handling",
+            "passed": false,
+            "actual_output": null,
+            "error_message": "Execution Error: __import__ not found\nLogs: ",
+            "execution_time_ms": 1.78829999640584,
+            "assertion_results": []
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_d00bfa1a' (version 1.0.0) with 5 tests.",
+          "[-] Test 'Valid Local Format' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+          "[-] Test 'Valid International Format' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+          "[-] Test 'Invalid Length - Too Short' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+          "[-] Test 'Invalid Prefix' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+          "[-] Test 'Formatting Characters Handling' FAILED due to execution error: Execution Error: __import__ not found\nLogs: "
+        ]
+      }
+    },
+    "1.0.1": {
+      "version": "1.0.1",
+      "parent_version": "1.0.0",
+      "manifest": {
+        "name": "Pakistani Phone Number Validator and Operator Extractor",
+        "slug": "pakistan-phone-validator-extractor",
+        "description": "Validates if a given string is a legitimate Pakistani phone number and extracts the network operator prefix.",
+        "category": "Security & Privacy Auditing",
+        "version": "1.0.1",
+        "parent_version": "1.0.0",
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "phone_number": "The phone number string to be validated (String)"
+        },
+        "outputs": {
+          "is_valid": "Boolean indicating if the number matches Pakistani numbering standards",
+          "operator_code": "The extracted network operator prefix (e.g., '0300', '0345') or null if invalid",
+          "formatted_number": "The number normalized to a standard format (e.g., +923XXXXXXXXX) (String)"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "def execute(inputs: dict) -> dict:\n    phone_number = inputs.get('phone_number', '')\n    if not isinstance(phone_number, str):\n        return {\"is_valid\": False, \"operator_code\": None, \"formatted_number\": None}\n\n    # Remove common formatting characters without using 're'\n    chars_to_remove = {' ', '-', '(', ')'}\n    clean_number = ''.join(c for c in phone_number if c not in chars_to_remove)\n\n    is_valid = False\n    operator_code = None\n    formatted_number = None\n\n    # Pattern 1: International format +923XXXXXXXXX (13 chars total)\n    if len(clean_number) == 13 and clean_number.startswith('+923') and clean_number[3:].isdigit():\n        is_valid = True\n        # Extract operator code: +92300... -> 0300\n        operator_code = '0' + clean_number[3:5]\n        formatted_number = clean_number\n    \n    # Pattern 2: Local format 03XXXXXXXXX (11 chars total)\n    elif len(clean_number) == 11 and clean_number.startswith('03') and clean_number.isdigit():\n        is_valid = True\n        operator_code = clean_number[:4]\n        formatted_number = '+92' + clean_number[1:]\n\n    return {\n        \"is_valid\": is_valid,\n        \"operator_code\": operator_code,\n        \"formatted_number\": formatted_number\n    }"
+      },
+      "skill_md": "# Pakistan Phone Number Validator\n\nValidates Pakistani phone numbers and converts them to a standardized international format.\n\n## Input\n- `phone_number` (string): The phone number to validate.\n\n## Output\n- `is_valid` (boolean): True if the number matches valid Pakistani formats.\n- `operator_code` (string|null): The 4-digit operator code (e.g., '0300').\n- `formatted_number` (string|null): The number in +923XXXXXXXXX format.",
+      "code": "def execute(inputs: dict) -> dict:\n    phone_number = inputs.get('phone_number', '')\n    if not isinstance(phone_number, str):\n        return {\"is_valid\": False, \"operator_code\": None, \"formatted_number\": None}\n\n    # Remove common formatting characters without using 're'\n    chars_to_remove = {' ', '-', '(', ')'}\n    clean_number = ''.join(c for c in phone_number if c not in chars_to_remove)\n\n    is_valid = False\n    operator_code = None\n    formatted_number = None\n\n    # Pattern 1: International format +923XXXXXXXXX (13 chars total)\n    if len(clean_number) == 13 and clean_number.startswith('+923') and clean_number[3:].isdigit():\n        is_valid = True\n        # Extract operator code: +92300... -> 0300\n        operator_code = '0' + clean_number[3:6]\n        formatted_number = clean_number\n    \n    # Pattern 2: Local format 03XXXXXXXXX (11 chars total)\n    elif len(clean_number) == 11 and clean_number.startswith('03') and clean_number.isdigit():\n        is_valid = True\n        operator_code = clean_number[:4]\n        formatted_number = '+92' + clean_number[1:]\n\n    return {\n        \"is_valid\": is_valid,\n        \"operator_code\": operator_code,\n        \"formatted_number\": formatted_number\n    }",
+      "created_at": 1792760194.432342,
+      "latest_run": {
+        "run_id": "run_650a7591",
+        "skill_id": "skill_d00bfa1a",
+        "version": "1.0.1",
+        "timestamp": 1792760194.4456253,
+        "status": "failed",
+        "passed_count": 0,
+        "failed_count": 5,
+        "total_tests": 5,
+        "pass_rate": 0.0,
+        "test_results": [
+          {
+            "test_id": "16fec510",
+            "test_name": "Valid Local Format",
+            "passed": false,
+            "actual_output": {
+              "is_valid": true,
+              "operator_code": "0300",
+              "formatted_number": "+923001234567"
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 3.0677001923322678,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": true,
+                "target_field": null,
+                "passed": false,
+                "message": "Expected True, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "0300",
+                "target_field": null,
+                "passed": false,
+                "message": "Expected 0300, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "+923001234567",
+                "target_field": null,
+                "passed": false,
+                "message": "Expected +923001234567, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}"
+              }
+            ]
+          },
+          {
+            "test_id": "ae28099f",
+            "test_name": "Valid International Format",
+            "passed": false,
+            "actual_output": {
+              "is_valid": true,
+              "operator_code": "034",
+              "formatted_number": "+923456789012"
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 2.9482003301382065,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": true,
+                "target_field": null,
+                "passed": false,
+                "message": "Expected True, got {'is_valid': True, 'operator_code': '034', 'formatted_number': '+923456789012'}"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "0345",
+                "target_field": null,
+                "passed": false,
+                "message": "Expected 0345, got {'is_valid': True, 'operator_code': '034', 'formatted_number': '+923456789012'}"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "+923456789012",
+                "target_field": null,
+                "passed": false,
+                "message": "Expected +923456789012, got {'is_valid': True, 'operator_code': '034', 'formatted_number': '+923456789012'}"
+              }
+            ]
+          },
+          {
+            "test_id": "19bcc220",
+            "test_name": "Invalid Length - Too Short",
+            "passed": false,
+            "actual_output": {
+              "is_valid": false,
+              "operator_code": null,
+              "formatted_number": null
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 2.0677000284194946,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": false,
+                "target_field": null,
+                "passed": false,
+                "message": "Expected False, got {'is_valid': False, 'operator_code': None, 'formatted_number': None}"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": null,
+                "target_field": null,
+                "passed": false,
+                "message": "Expected None, got {'is_valid': False, 'operator_code': None, 'formatted_number': None}"
+              }
+            ]
+          },
+          {
+            "test_id": "2e3e8454",
+            "test_name": "Invalid Prefix",
+            "passed": false,
+            "actual_output": {
+              "is_valid": false,
+              "operator_code": null,
+              "formatted_number": null
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 1.816099975258112,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": false,
+                "target_field": null,
+                "passed": false,
+                "message": "Expected False, got {'is_valid': False, 'operator_code': None, 'formatted_number': None}"
+              }
+            ]
+          },
+          {
+            "test_id": "963c1c1d",
+            "test_name": "Formatting Characters Handling",
+            "passed": false,
+            "actual_output": {
+              "is_valid": true,
+              "operator_code": "0300",
+              "formatted_number": "+923001234567"
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 2.3301001638174057,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": true,
+                "target_field": null,
+                "passed": false,
+                "message": "Expected True, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}"
+              },
+              {
+                "assertion_type": "equals",
+                "expected": "0300",
+                "target_field": null,
+                "passed": false,
+                "message": "Expected 0300, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}"
+              }
+            ]
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_d00bfa1a' (version 1.0.1) with 5 tests.",
+          "[-] Test 'Valid Local Format' FAILED assertions: [\"Expected True, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}\", \"Expected 0300, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}\", \"Expected +923001234567, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}\"]",
+          "[-] Test 'Valid International Format' FAILED assertions: [\"Expected True, got {'is_valid': True, 'operator_code': '034', 'formatted_number': '+923456789012'}\", \"Expected 0345, got {'is_valid': True, 'operator_code': '034', 'formatted_number': '+923456789012'}\", \"Expected +923456789012, got {'is_valid': True, 'operator_code': '034', 'formatted_number': '+923456789012'}\"]",
+          "[-] Test 'Invalid Length - Too Short' FAILED assertions: [\"Expected False, got {'is_valid': False, 'operator_code': None, 'formatted_number': None}\", \"Expected None, got {'is_valid': False, 'operator_code': None, 'formatted_number': None}\"]",
+          "[-] Test 'Invalid Prefix' FAILED assertions: [\"Expected False, got {'is_valid': False, 'operator_code': None, 'formatted_number': None}\"]",
+          "[-] Test 'Formatting Characters Handling' FAILED assertions: [\"Expected True, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}\", \"Expected 0300, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}\"]"
+        ]
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "id": "16fec510",
+      "name": "Valid Local Format",
+      "description": "Validates a standard local Pakistani phone number starting with 03",
+      "input_data": {
+        "phone_number": "03001234567"
+      },
+      "expected_behavior": "Should return is_valid true, operator_code 0300, and formatted number +923001234567",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": true,
+          "target_field": null
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "0300",
+          "target_field": null
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "+923001234567",
+          "target_field": null
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "ae28099f",
+      "name": "Valid International Format",
+      "description": "Validates a standard international Pakistani phone number starting with +923",
+      "input_data": {
+        "phone_number": "+923456789012"
+      },
+      "expected_behavior": "Should return is_valid true, operator_code 0345, and formatted number +923456789012",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": true,
+          "target_field": null
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "0345",
+          "target_field": null
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "+923456789012",
+          "target_field": null
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "19bcc220",
+      "name": "Invalid Length - Too Short",
+      "description": "Validates that a number with insufficient digits is rejected",
+      "input_data": {
+        "phone_number": "0300123"
+      },
+      "expected_behavior": "Should return is_valid false and null for operator and formatted number",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": false,
+          "target_field": null
+        },
+        {
+          "assertion_type": "equals",
+          "expected": null,
+          "target_field": null
+        }
+      ],
+      "is_edge_case": true
+    },
+    {
+      "id": "2e3e8454",
+      "name": "Invalid Prefix",
+      "description": "Validates that a number starting with an incorrect digit (not 03 or +923) is rejected",
+      "input_data": {
+        "phone_number": "04001234567"
+      },
+      "expected_behavior": "Should return is_valid false",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": false,
+          "target_field": null
+        }
+      ],
+      "is_edge_case": true
+    },
+    {
+      "id": "963c1c1d",
+      "name": "Formatting Characters Handling",
+      "description": "Validates that spaces and hyphens are stripped and the number is still processed correctly",
+      "input_data": {
+        "phone_number": "0300-123 4567"
+      },
+      "expected_behavior": "Should strip characters and return is_valid true",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": true,
+          "target_field": null
+        },
+        {
+          "assertion_type": "equals",
+          "expected": "0300",
+          "target_field": null
+        }
+      ],
+      "is_edge_case": true
+    }
+  ],
+  "runs": [
+    {
+      "run_id": "run_df782a48",
+      "skill_id": "skill_d00bfa1a",
+      "version": "1.0.0",
+      "timestamp": 1792760190.690889,
+      "status": "failed",
+      "passed_count": 0,
+      "failed_count": 5,
+      "total_tests": 5,
+      "pass_rate": 0.0,
+      "test_results": [
+        {
+          "test_id": "16fec510",
+          "test_name": "Valid Local Format",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 1.026500016450882,
+          "assertion_results": []
+        },
+        {
+          "test_id": "ae28099f",
+          "test_name": "Valid International Format",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 0.8861999958753586,
+          "assertion_results": []
+        },
+        {
+          "test_id": "19bcc220",
+          "test_name": "Invalid Length - Too Short",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 1.4733998104929924,
+          "assertion_results": []
+        },
+        {
+          "test_id": "2e3e8454",
+          "test_name": "Invalid Prefix",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 1.8258001655340195,
+          "assertion_results": []
+        },
+        {
+          "test_id": "963c1c1d",
+          "test_name": "Formatting Characters Handling",
+          "passed": false,
+          "actual_output": null,
+          "error_message": "Execution Error: __import__ not found\nLogs: ",
+          "execution_time_ms": 1.78829999640584,
+          "assertion_results": []
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_d00bfa1a' (version 1.0.0) with 5 tests.",
+        "[-] Test 'Valid Local Format' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+        "[-] Test 'Valid International Format' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+        "[-] Test 'Invalid Length - Too Short' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+        "[-] Test 'Invalid Prefix' FAILED due to execution error: Execution Error: __import__ not found\nLogs: ",
+        "[-] Test 'Formatting Characters Handling' FAILED due to execution error: Execution Error: __import__ not found\nLogs: "
+      ]
+    },
+    {
+      "run_id": "run_650a7591",
+      "skill_id": "skill_d00bfa1a",
+      "version": "1.0.1",
+      "timestamp": 1792760194.4456253,
+      "status": "failed",
+      "passed_count": 0,
+      "failed_count": 5,
+      "total_tests": 5,
+      "pass_rate": 0.0,
+      "test_results": [
+        {
+          "test_id": "16fec510",
+          "test_name": "Valid Local Format",
+          "passed": false,
+          "actual_output": {
+            "is_valid": true,
+            "operator_code": "0300",
+            "formatted_number": "+923001234567"
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 3.0677001923322678,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": null,
+              "passed": false,
+              "message": "Expected True, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "0300",
+              "target_field": null,
+              "passed": false,
+              "message": "Expected 0300, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "+923001234567",
+              "target_field": null,
+              "passed": false,
+              "message": "Expected +923001234567, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}"
+            }
+          ]
+        },
+        {
+          "test_id": "ae28099f",
+          "test_name": "Valid International Format",
+          "passed": false,
+          "actual_output": {
+            "is_valid": true,
+            "operator_code": "034",
+            "formatted_number": "+923456789012"
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 2.9482003301382065,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": null,
+              "passed": false,
+              "message": "Expected True, got {'is_valid': True, 'operator_code': '034', 'formatted_number': '+923456789012'}"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "0345",
+              "target_field": null,
+              "passed": false,
+              "message": "Expected 0345, got {'is_valid': True, 'operator_code': '034', 'formatted_number': '+923456789012'}"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "+923456789012",
+              "target_field": null,
+              "passed": false,
+              "message": "Expected +923456789012, got {'is_valid': True, 'operator_code': '034', 'formatted_number': '+923456789012'}"
+            }
+          ]
+        },
+        {
+          "test_id": "19bcc220",
+          "test_name": "Invalid Length - Too Short",
+          "passed": false,
+          "actual_output": {
+            "is_valid": false,
+            "operator_code": null,
+            "formatted_number": null
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 2.0677000284194946,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": false,
+              "target_field": null,
+              "passed": false,
+              "message": "Expected False, got {'is_valid': False, 'operator_code': None, 'formatted_number': None}"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": null,
+              "target_field": null,
+              "passed": false,
+              "message": "Expected None, got {'is_valid': False, 'operator_code': None, 'formatted_number': None}"
+            }
+          ]
+        },
+        {
+          "test_id": "2e3e8454",
+          "test_name": "Invalid Prefix",
+          "passed": false,
+          "actual_output": {
+            "is_valid": false,
+            "operator_code": null,
+            "formatted_number": null
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 1.816099975258112,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": false,
+              "target_field": null,
+              "passed": false,
+              "message": "Expected False, got {'is_valid': False, 'operator_code': None, 'formatted_number': None}"
+            }
+          ]
+        },
+        {
+          "test_id": "963c1c1d",
+          "test_name": "Formatting Characters Handling",
+          "passed": false,
+          "actual_output": {
+            "is_valid": true,
+            "operator_code": "0300",
+            "formatted_number": "+923001234567"
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 2.3301001638174057,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": true,
+              "target_field": null,
+              "passed": false,
+              "message": "Expected True, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}"
+            },
+            {
+              "assertion_type": "equals",
+              "expected": "0300",
+              "target_field": null,
+              "passed": false,
+              "message": "Expected 0300, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}"
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_d00bfa1a' (version 1.0.1) with 5 tests.",
+        "[-] Test 'Valid Local Format' FAILED assertions: [\"Expected True, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}\", \"Expected 0300, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}\", \"Expected +923001234567, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}\"]",
+        "[-] Test 'Valid International Format' FAILED assertions: [\"Expected True, got {'is_valid': True, 'operator_code': '034', 'formatted_number': '+923456789012'}\", \"Expected 0345, got {'is_valid': True, 'operator_code': '034', 'formatted_number': '+923456789012'}\", \"Expected +923456789012, got {'is_valid': True, 'operator_code': '034', 'formatted_number': '+923456789012'}\"]",
+        "[-] Test 'Invalid Length - Too Short' FAILED assertions: [\"Expected False, got {'is_valid': False, 'operator_code': None, 'formatted_number': None}\", \"Expected None, got {'is_valid': False, 'operator_code': None, 'formatted_number': None}\"]",
+        "[-] Test 'Invalid Prefix' FAILED assertions: [\"Expected False, got {'is_valid': False, 'operator_code': None, 'formatted_number': None}\"]",
+        "[-] Test 'Formatting Characters Handling' FAILED assertions: [\"Expected True, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}\", \"Expected 0300, got {'is_valid': True, 'operator_code': '0300', 'formatted_number': '+923001234567'}\"]"
+      ]
+    }
+  ],
+  "improvements": [
+    {
+      "iteration": 1,
+      "previous_version": "1.0.0",
+      "new_version": "1.0.1",
+      "failure_analysis": "The execution errors '__import__ not found' indicate that the environment running the code is restricting the use of the 'import' statement or the 're' module is not available in the specific sandbox configuration. To resolve this, I will replace the 're' module dependencies with native Python string methods and slicing, which are more portable and avoid import restrictions.",
+      "changes_made": "1. Removed 'import re' to eliminate the '__import__' execution error.\n2. Replaced 're.sub' with a generator expression and ''.join() to strip formatting characters (spaces, hyphens, parentheses).\n3. Replaced 're.fullmatch' with string slicing and '.isdigit()' checks to validate the phone number patterns.\n4. Maintained the logic for operator code extraction and international formatting to ensure functional parity.",
+      "before_pass_rate": 0.0,
+      "after_pass_rate": 0.0,
+      "improved": false,
+      "regression_detected": false,
+      "decision": "accepted",
+      "decision_reason": "",
+      "fixed_tests": [],
+      "regressed_tests": [],
+      "remaining_issues": [
+        "Valid Local Format",
+        "Valid International Format",
+        "Invalid Length - Too Short",
+        "Invalid Prefix",
+        "Formatting Characters Handling"
+      ],
+      "timestamp": 1792760194.4456253
+    }
+  ],
+  "created_at": 1792760190.690889,
+  "updated_at": 1792760190.690889
+}

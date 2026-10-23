@@ -1,0 +1,174 @@
+{
+  "id": "skill_security_verifier",
+  "name": "HTTP Security Header & SSL Policy Verifier",
+  "category": "Security / Web QA",
+  "current_version": "1.0.0",
+  "versions": {
+    "1.0.0": {
+      "version": "1.0.0",
+      "parent_version": null,
+      "manifest": {
+        "name": "HTTP Security Header & SSL Policy Verifier",
+        "slug": "http-security-auditor",
+        "description": "Inspects server headers and security configurations for missing defense-in-depth protections (HSTS, CSP, X-Frame-Options).",
+        "category": "Security / Web QA",
+        "version": "1.0.0",
+        "parent_version": null,
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "headers": "Dict of HTTP response headers",
+          "url": "Target URL"
+        },
+        "outputs": {
+          "grade": "str",
+          "score": "int",
+          "missing_headers": "list",
+          "findings": "list"
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [],
+        "code": null
+      },
+      "skill_md": "---\nname: http-security-auditor\ncategory: Security / Web QA\nversion: 1.0.0\n---\n# HTTP Security Header & SSL Policy Verifier\n\n## Purpose\nInspects HTTP response headers against OWASP security guidance to evaluate client-side defense postures.\n",
+      "code": "def execute(inputs: dict) -> dict:\n    headers = {k.lower(): v for k, v in inputs.get(\"headers\", {}).items()}\n    required_headers = {\n        \"strict-transport-security\": \"Enforces HTTPS connections (HSTS)\",\n        \"content-security-policy\": \"Mitigates Cross-Site Scripting (CSP)\",\n        \"x-frame-options\": \"Prevents Clickjacking attacks\",\n        \"x-content-type-options\": \"Disables MIME-type sniffing\"\n    }\n    \n    missing = []\n    findings = []\n    score = 100\n\n    for h, desc in required_headers.items():\n        if h not in headers:\n            missing.append(h)\n            findings.append(f\"Missing header '{h}': {desc}\")\n            score -= 25\n\n    grade = \"A\" if score >= 90 else \"B\" if score >= 75 else \"C\" if score >= 50 else \"F\"\n    return {\n        \"url\": inputs.get(\"url\", \"\"),\n        \"grade\": grade,\n        \"score\": max(0, score),\n        \"missing_headers\": missing,\n        \"findings\": findings\n    }\n",
+      "created_at": 1792757809.2988641,
+      "latest_run": {
+        "run_id": "run_sec_seed",
+        "skill_id": "skill_security_verifier",
+        "version": "1.0.0",
+        "timestamp": 1792756009.2988641,
+        "status": "passed",
+        "passed_count": 2,
+        "failed_count": 0,
+        "total_tests": 2,
+        "pass_rate": 100.0,
+        "test_results": [
+          {
+            "test_id": "s1",
+            "test_name": "Hardened Server Configuration",
+            "passed": true,
+            "actual_output": {
+              "grade": "A",
+              "score": 100
+            },
+            "error_message": null,
+            "execution_time_ms": 0.0,
+            "assertion_results": []
+          },
+          {
+            "test_id": "s2",
+            "test_name": "Vulnerable Legacy Server Headers",
+            "passed": true,
+            "actual_output": {
+              "grade": "F",
+              "score": 0
+            },
+            "error_message": null,
+            "execution_time_ms": 0.0,
+            "assertion_results": []
+          }
+        ],
+        "logs": []
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "id": "s1",
+      "name": "Hardened Server Configuration",
+      "description": "Verifies that a fully protected server receives an 'A' grade with 100 score",
+      "input_data": {
+        "url": "https://secure.example.com",
+        "headers": {
+          "Strict-Transport-Security": "max-age=31536000",
+          "Content-Security-Policy": "default-src 'self'",
+          "X-Frame-Options": "DENY",
+          "X-Content-Type-Options": "nosniff"
+        }
+      },
+      "expected_behavior": "Grade A and 0 missing headers",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": "A",
+          "target_field": "grade"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 100,
+          "target_field": "score"
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "s2",
+      "name": "Vulnerable Legacy Server Headers",
+      "description": "Detects multiple missing headers and degrades score appropriately",
+      "input_data": {
+        "url": "http://legacy.example.com",
+        "headers": {
+          "Server": "Apache/2.4"
+        }
+      },
+      "expected_behavior": "Score dropped and missing headers identified",
+      "assertions": [
+        {
+          "assertion_type": "contains",
+          "expected": "strict-transport-security",
+          "target_field": "missing_headers"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": "score"
+        }
+      ],
+      "is_edge_case": false
+    }
+  ],
+  "runs": [
+    {
+      "run_id": "run_sec_seed",
+      "skill_id": "skill_security_verifier",
+      "version": "1.0.0",
+      "timestamp": 1792756009.2988641,
+      "status": "passed",
+      "passed_count": 2,
+      "failed_count": 0,
+      "total_tests": 2,
+      "pass_rate": 100.0,
+      "test_results": [
+        {
+          "test_id": "s1",
+          "test_name": "Hardened Server Configuration",
+          "passed": true,
+          "actual_output": {
+            "grade": "A",
+            "score": 100
+          },
+          "error_message": null,
+          "execution_time_ms": 0.0,
+          "assertion_results": []
+        },
+        {
+          "test_id": "s2",
+          "test_name": "Vulnerable Legacy Server Headers",
+          "passed": true,
+          "actual_output": {
+            "grade": "F",
+            "score": 0
+          },
+          "error_message": null,
+          "execution_time_ms": 0.0,
+          "assertion_results": []
+        }
+      ],
+      "logs": []
+    }
+  ],
+  "improvements": [],
+  "created_at": 1792756009.2988641,
+  "updated_at": 1792757809.2988641
+}
