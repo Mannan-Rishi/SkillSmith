@@ -1,12 +1,42 @@
 import json
+import os
+import shutil
 from pathlib import Path
 from typing import List, Optional, Dict
 from backend.models import Skill, SkillVersion, ExecutionRun, AppSettings
 
-SKILLS_DIR = Path(__file__).resolve().parent.parent / "data" / "skills"
-SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+IS_VERCEL = bool(os.environ.get("VERCEL")) or bool(os.environ.get("VERCEL_ENV"))
+BUNDLED_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
-SETTINGS_FILE = Path(__file__).resolve().parent.parent / "data" / "settings.json"
+if IS_VERCEL:
+    # Serverless runtime: storage in /tmp is writable
+    DATA_DIR = Path("/tmp/data")
+    SKILLS_DIR = DATA_DIR / "skills"
+    SETTINGS_FILE = DATA_DIR / "settings.json"
+    SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Copy bundled pre-built skills to /tmp on cold start if not present
+    bundled_skills = BUNDLED_DATA_DIR / "skills"
+    if bundled_skills.exists():
+        for f in bundled_skills.glob("*.json"):
+            dst = SKILLS_DIR / f.name
+            if not dst.exists():
+                try:
+                    shutil.copy2(f, dst)
+                except Exception:
+                    pass
+
+    bundled_settings = BUNDLED_DATA_DIR / "settings.json"
+    if bundled_settings.exists() and not SETTINGS_FILE.exists():
+        try:
+            shutil.copy2(bundled_settings, SETTINGS_FILE)
+        except Exception:
+            pass
+else:
+    DATA_DIR = BUNDLED_DATA_DIR
+    SKILLS_DIR = DATA_DIR / "skills"
+    SETTINGS_FILE = DATA_DIR / "settings.json"
+    SKILLS_DIR.mkdir(parents=True, exist_ok=True)
 
 def get_app_settings() -> AppSettings:
     if SETTINGS_FILE.exists():
@@ -19,8 +49,11 @@ def get_app_settings() -> AppSettings:
     return AppSettings()
 
 def save_app_settings(settings: AppSettings):
-    with open(SETTINGS_FILE, "w", encoding="utf-8") as fp:
-        fp.write(settings.model_dump_json(indent=2))
+    try:
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as fp:
+            fp.write(settings.model_dump_json(indent=2))
+    except Exception as e:
+        print(f"Warning: Could not persist settings to disk: {e}")
 
 class SkillRegistry:
     def __init__(self):
@@ -29,20 +62,55 @@ class SkillRegistry:
 
     def load_all(self):
         self._skills.clear()
-        for f in SKILLS_DIR.glob("*.json"):
-            try:
-                with open(f, "r", encoding="utf-8") as fp:
-                    data = json.load(fp)
-                    skill = Skill(**data)
-                    self._skills[skill.id] = skill
-            except Exception as e:
-                print(f"Error loading skill file {f}: {e}")
+        
+        # Load bundled skills first
+        bundled_skills = BUNDLED_DATA_DIR / "skills"
+        if bundled_skills.exists() and bundled_skills != SKILLS_DIR:
+            for f in bundled_skills.glob("*.json"):
+                try:
+                    with open(f, "r", encoding="utf-8") as fp:
+                        data = json.load(fp)
+                        skill = Skill(**data)
+                        self._skills[skill.id] = skill
+                except Exception as e:
+                    print(f"Error loading bundled skill {f}: {e}")
+
+        # Load active/writable skills (overriding or supplementing bundled)
+        if SKILLS_DIR.exists():
+            for f in SKILLS_DIR.glob("*.json"):
+                try:
+                    with open(f, "r", encoding="utf-8") as fp:
+                        data = json.load(fp)
+                        skill = Skill(**data)
+                        self._skills[skill.id] = skill
+                except Exception as e:
+                    print(f"Error loading skill file {f}: {e}")
 
     def save(self, skill: Skill):
+        # Update in‑memory cache first
         self._skills[skill.id] = skill
-        file_path = SKILLS_DIR / f"{skill.id}.json"
-        with open(file_path, "w", encoding="utf-8") as fp:
-            fp.write(skill.model_dump_json(indent=2))
+        # Preferred location (writes to SKILLS_DIR which is /tmp/data when running on Vercel)
+        primary_path = SKILLS_DIR / f"{skill.id}.json"
+        try:
+            primary_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(primary_path, "w", encoding="utf-8") as fp:
+                fp.write(skill.model_dump_json(indent=2))
+        except OSError as oe:
+            # Likely a read‑only filesystem (e.g., /var/task). Fallback to /tmp
+            fallback_dir = Path("/tmp/data/skills")
+            fallback_dir.mkdir(parents=True, exist_ok=True)
+            fallback_path = fallback_dir / f"{skill.id}.json"
+            try:
+                with open(fallback_path, "w", encoding="utf-8") as fp:
+                    fp.write(skill.model_dump_json(indent=2))
+                # Update global SKILLS_DIR to writable location for future ops
+                global SKILLS_DIR
+                SKILLS_DIR = fallback_dir
+                print(f"Info: Fell back to writable path {fallback_path}")
+            except Exception as e2:
+                print(f"Error: Could not persist skill {skill.id} to any location: {e2}")
+        except Exception as e:
+            print(f"Warning: Could not write skill {skill.id} to disk: {e}")
 
     def get(self, skill_id: str) -> Optional[Skill]:
         return self._skills.get(skill_id)
@@ -55,7 +123,10 @@ class SkillRegistry:
             del self._skills[skill_id]
             file_path = SKILLS_DIR / f"{skill_id}.json"
             if file_path.exists():
-                file_path.unlink()
+                try:
+                    file_path.unlink()
+                except Exception as e:
+                    print(f"Warning: Could not unlink {file_path}: {e}")
             return True
         return False
 
