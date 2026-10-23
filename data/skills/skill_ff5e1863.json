@@ -1,0 +1,1003 @@
+{
+  "id": "skill_ff5e1863",
+  "name": "PII Masking for Emails and Pakistani Phone Numbers",
+  "category": "Security & Privacy",
+  "current_version": "1.0.1",
+  "versions": {
+    "1.0.0": {
+      "version": "1.0.0",
+      "parent_version": null,
+      "manifest": {
+        "name": "PII Masking for Emails and Pakistani Phone Numbers",
+        "slug": "pii-masking-emails-pk-phones",
+        "description": "Detects and masks email addresses and Pakistani phone numbers within a text string to protect personally identifiable information while preserving the surrounding context.",
+        "category": "Security & Privacy",
+        "version": "1.0.0",
+        "parent_version": null,
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "input_text": "The raw text string containing potential PII to be masked (String)"
+        },
+        "outputs": {
+          "masked_text": "The processed text with PII replaced by masks (String)",
+          "detection_summary": {
+            "emails_count": "Total number of email addresses detected and masked (Integer)",
+            "phones_count": "Total number of Pakistani phone numbers detected and masked (Integer)"
+          }
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    \"\"\"\n    Masks emails and Pakistani phone numbers in the provided text.\n    \"\"\"\n    # Input validation\n    input_text = inputs.get('input_text')\n    if input_text is None or not isinstance(input_text, str) or input_text.strip() == \"\":\n        return {\n            \"masked_text\": \"\",\n            \"detection_summary\": {\n                \"emails_count\": 0,\n                \"phones_count\": 0\n            }\n        }\n\n    # Regex for Emails\n    # Simple but effective email regex\n    email_pattern = r'([a-zA-Z0-9_.+-])([a-zA-Z0-9_.+-]*)@([a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+)'\n    \n    # Regex for Pakistani Phone Numbers\n    # Matches: 03xx, +923xx, 00923xx followed by 7 digits\n    # Group 1: Prefix, Group 2: Middle digits to mask, Group 3: Last 4 digits\n    phone_pattern = r'(\\b(?:\\+92|0092|0)3\\d{2})(\\d{3})(\\d{4}\\b)'\n\n    emails_count = 0\n    phones_count = 0\n\n    def mask_email(match):\n        nonlocal emails_count\n        emails_count += 1\n        first_char = match.group(1)\n        domain = match.group(3)\n        return f\"{first_char}***@{domain}\"\n\n    def mask_phone(match):\n        nonlocal phones_count\n        phones_count += 1\n        prefix = match.group(1)\n        last_four = match.group(3)\n        return f\"{prefix}****{last_four}\"\n\n    # Process emails first, then phones to avoid overlapping replacements\n    processed_text = re.sub(email_pattern, mask_email, input_text)\n    processed_text = re.sub(phone_pattern, mask_phone, processed_text)\n\n    return {\n        \"masked_text\": processed_text,\n        \"detection_summary\": {\n            \"emails_count\": emails_count,\n            \"phones_count\": phones_count\n        }\n    }"
+      },
+      "skill_md": "---\nname: PII Masking for Emails and Pakistani Phone Numbers\nslug: pii-masking-emails-pk-phones\ncategory: Security & Privacy\nversion: 1.0.0\n---\n\n# PII Masking for Emails and Pakistani Phone Numbers\n\n## Overview\nThis skill detects and masks email addresses and Pakistani phone numbers within a text string. It is designed to protect personally identifiable information (PII) while maintaining the structural context of the document for analysis or logging purposes.\n\n## Usage\n### Inputs\n- `input_text` (String): The raw text containing potential PII to be masked.\n\n### Outputs\n- `masked_text` (String): The processed text where PII is replaced by masks.\n- `detection_summary` (Object):\n    - `emails_count` (Integer): Total email addresses masked.\n    - `phones_count` (Integer): Total Pakistani phone numbers masked.\n\n## Masking Logic\n- **Emails**: Preserves the first character of the local part and the full domain (e.g., `john.doe@example.com` $\\rightarrow$ `j***@example.com`).\n- **Pakistani Phone Numbers**: Preserves only the last four digits. Supports formats: `03xx`, `+923xx`, and `00923xx` (e.g., `03001234567` $\\rightarrow$ `0300****4567`).\n\n## Error Handling\n- If `input_text` is null or empty, the skill returns an empty string and zero counts.\n- Non-matching numeric strings or international numbers not following the Pakistani format are ignored.",
+      "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    \"\"\"\n    Masks emails and Pakistani phone numbers in the provided text.\n    \"\"\"\n    # Input validation\n    input_text = inputs.get('input_text')\n    if input_text is None or not isinstance(input_text, str) or input_text.strip() == \"\":\n        return {\n            \"masked_text\": \"\",\n            \"detection_summary\": {\n                \"emails_count\": 0,\n                \"phones_count\": 0\n            }\n        }\n\n    # Regex for Emails\n    # Simple but effective email regex\n    email_pattern = r'([a-zA-Z0-9_.+-])([a-zA-Z0-9_.+-]*)@([a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+)'\n    \n    # Regex for Pakistani Phone Numbers\n    # Matches: 03xx, +923xx, 00923xx followed by 7 digits\n    # Group 1: Prefix, Group 2: Middle digits to mask, Group 3: Last 4 digits\n    phone_pattern = r'(\\b(?:\\+92|0092|0)3\\d{2})(\\d{3})(\\d{4}\\b)'\n\n    emails_count = 0\n    phones_count = 0\n\n    def mask_email(match):\n        nonlocal emails_count\n        emails_count += 1\n        first_char = match.group(1)\n        domain = match.group(3)\n        return f\"{first_char}***@{domain}\"\n\n    def mask_phone(match):\n        nonlocal phones_count\n        phones_count += 1\n        prefix = match.group(1)\n        last_four = match.group(3)\n        return f\"{prefix}****{last_four}\"\n\n    # Process emails first, then phones to avoid overlapping replacements\n    processed_text = re.sub(email_pattern, mask_email, input_text)\n    processed_text = re.sub(phone_pattern, mask_phone, processed_text)\n\n    return {\n        \"masked_text\": processed_text,\n        \"detection_summary\": {\n            \"emails_count\": emails_count,\n            \"phones_count\": phones_count\n        }\n    }",
+      "created_at": 1792773067.6210845,
+      "latest_run": {
+        "run_id": "run_ff375a47",
+        "skill_id": "skill_ff5e1863",
+        "version": "1.0.0",
+        "timestamp": 1792773067.6366138,
+        "status": "failed",
+        "passed_count": 3,
+        "failed_count": 1,
+        "total_tests": 4,
+        "pass_rate": 75.0,
+        "test_results": [
+          {
+            "test_id": "b907aebd",
+            "test_name": "Standard PII Detection",
+            "passed": true,
+            "actual_output": {
+              "masked_text": "Contact me at a***@gmail.com or call 0300****4567.",
+              "detection_summary": {
+                "emails_count": 1,
+                "phones_count": 1
+              }
+            },
+            "error_message": null,
+            "execution_time_ms": 5.00589981675148,
+            "assertion_results": [
+              {
+                "assertion_type": "contains",
+                "expected": "a***@gmail.com",
+                "target_field": "masked_text",
+                "passed": true,
+                "message": "Checked substring 'a***@gmail.com' in text (found: True)",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "0300****4567",
+                "target_field": "masked_text",
+                "passed": true,
+                "message": "Checked substring '0300****4567' in text (found: True)",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 1,
+                "target_field": "detection_summary.emails_count",
+                "passed": true,
+                "message": "Expected 1, got 1",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 1,
+                "target_field": "detection_summary.phones_count",
+                "passed": true,
+                "message": "Expected 1, got 1",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "2681678a",
+            "test_name": "Multiple Pakistani Phone Formats",
+            "passed": false,
+            "actual_output": {
+              "masked_text": "Numbers: +923011112222, 0092312****4444, 0321****6666",
+              "detection_summary": {
+                "emails_count": 0,
+                "phones_count": 2
+              }
+            },
+            "error_message": "Assertion failures",
+            "execution_time_ms": 3.2620998099446297,
+            "assertion_results": [
+              {
+                "assertion_type": "contains",
+                "expected": "+92301****2222",
+                "target_field": "masked_text",
+                "passed": false,
+                "message": "Checked substring '+92301****2222' in text (found: False)",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "0092312****4444",
+                "target_field": "masked_text",
+                "passed": true,
+                "message": "Checked substring '0092312****4444' in text (found: True)",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "0321****6666",
+                "target_field": "masked_text",
+                "passed": true,
+                "message": "Checked substring '0321****6666' in text (found: True)",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 3,
+                "target_field": "detection_summary.phones_count",
+                "passed": false,
+                "message": "Expected '3', got '2' (target: detection_summary.phones_count)",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "c1ce007c",
+            "test_name": "Non-PII and Foreign Numbers",
+            "passed": true,
+            "actual_output": {
+              "masked_text": "My US number is +12025550123 and my ID is 123456789.",
+              "detection_summary": {
+                "emails_count": 0,
+                "phones_count": 0
+              }
+            },
+            "error_message": null,
+            "execution_time_ms": 3.079699818044901,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "My US number is +12025550123 and my ID is 123456789.",
+                "target_field": "masked_text",
+                "passed": true,
+                "message": "Expected My US number is +12025550123 and my ID is 123456789., got My US number is +12025550123 and my ID is 123456789.",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "detection_summary.emails_count",
+                "passed": true,
+                "message": "Expected 0, got 0",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "detection_summary.phones_count",
+                "passed": true,
+                "message": "Expected 0, got 0",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "f5448791",
+            "test_name": "Empty and Null Input",
+            "passed": true,
+            "actual_output": {
+              "masked_text": "",
+              "detection_summary": {
+                "emails_count": 0,
+                "phones_count": 0
+              }
+            },
+            "error_message": null,
+            "execution_time_ms": 2.9748999513685703,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "",
+                "target_field": "masked_text",
+                "passed": true,
+                "message": "Expected , got ",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "detection_summary.emails_count",
+                "passed": true,
+                "message": "Expected 0, got 0",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "detection_summary.phones_count",
+                "passed": true,
+                "message": "Expected 0, got 0",
+                "is_evaluator_error": false
+              }
+            ]
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_ff5e1863' (version 1.0.0) with 4 tests.",
+          "[+] Test 'Standard PII Detection' PASSED in 5.0ms",
+          "[-] Test 'Multiple Pakistani Phone Formats' FAILED assertions: [\"Checked substring '+92301****2222' in text (found: False)\", \"Expected '3', got '2' (target: detection_summary.phones_count)\"]",
+          "[+] Test 'Non-PII and Foreign Numbers' PASSED in 3.1ms",
+          "[+] Test 'Empty and Null Input' PASSED in 3.0ms"
+        ]
+      }
+    },
+    "1.0.1": {
+      "version": "1.0.1",
+      "parent_version": "1.0.0",
+      "manifest": {
+        "name": "PII Masking for Emails and Pakistani Phone Numbers",
+        "slug": "pii-masking-emails-pk-phones",
+        "description": "Detects and masks email addresses and Pakistani phone numbers within a text string to protect personally identifiable information while preserving the surrounding context.",
+        "category": "Security & Privacy",
+        "version": "1.0.1",
+        "parent_version": "1.0.0",
+        "author": "SkillSmith AI (Gemma)",
+        "inputs": {
+          "input_text": "The raw text string containing potential PII to be masked (String)"
+        },
+        "outputs": {
+          "masked_text": "The processed text with PII replaced by masks (String)",
+          "detection_summary": {
+            "emails_count": "Total number of email addresses detected and masked (Integer)",
+            "phones_count": "Total number of Pakistani phone numbers detected and masked (Integer)"
+          }
+        },
+        "dependencies": [],
+        "execution_strategy": "restricted_python",
+        "safety_requirements": [
+          "Safe AST inspection",
+          "No host file system or network access"
+        ],
+        "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    \"\"\"\n    Masks emails and Pakistani phone numbers in the provided text.\n    \"\"\"\n    # Input validation\n    input_text = inputs.get('input_text')\n    if input_text is None or not isinstance(input_text, str) or input_text.strip() == \"\":\n        return {\n            \"masked_text\": \"\",\n            \"detection_summary\": {\n                \"emails_count\": 0,\n                \"phones_count\": 0\n            }\n        }\n\n    # Regex for Emails\n    # Matches standard email formats\n    email_pattern = r'([a-zA-Z0-9_.+-])([a-zA-Z0-9_.+-]*)@([a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+)'\n    \n    # Regex for Pakistani Phone Numbers\n    # Matches: 03xx, +923xx, 00923xx followed by 7 digits\n    # Use (?<!\\d) instead of \\b to allow '+' at the start while preventing matching inside longer digit strings\n    phone_pattern = r'(?<!\\d)((\\+92|0092|0)3\\d{2})(\\d{3})(\\d{4})(?!\\d)'\n\n    emails_count = 0\n    phones_count = 0\n\n    def mask_email(match):\n        nonlocal emails_count\n        emails_count += 1\n        first_char = match.group(1)\n        domain = match.group(3)\n        return f\"{first_char}***@{domain}\"\n\n    def mask_phone(match):\n        nonlocal phones_count\n        phones_count += 1\n        prefix = match.group(1)\n        last_four = match.group(4)\n        return f\"{prefix}****{last_four}\"\n\n    # Process emails first, then phones to avoid overlapping replacements\n    processed_text = re.sub(email_pattern, mask_email, input_text)\n    processed_text = re.sub(phone_pattern, mask_phone, processed_text)\n\n    return {\n        \"masked_text\": processed_text,\n        \"detection_summary\": {\n            \"emails_count\": emails_count,\n            \"phones_count\": phones_count\n        }\n    }"
+      },
+      "skill_md": "# PII Masker (Pakistan)\n\nThis skill identifies and masks sensitive Personal Identifiable Information (PII) specifically tailored for Pakistani contexts, focusing on email addresses and Pakistani phone numbers.\n\n## Input\n- `input_text` (string): The text containing potential PII to be masked.\n\n## Output\n- `masked_text` (string): The text with PII replaced by masks.\n- `detection_summary` (object):\n    - `emails_count` (integer): Total number of emails masked.\n    - `phones_count` (integer): Total number of phone numbers masked.\n\n## Masking Logic\n1. **Emails**: Preserves the first character of the local part and the entire domain. Example: `user@example.com` -> `u***@example.com`.\n2. **Pakistani Phone Numbers**: Preserves the prefix (e.g., `+923xx`, `00923xx`, or `03xx`) and the last 4 digits. Example: `+923011112222` -> `+92301****2222`.",
+      "code": "import re\n\ndef execute(inputs: dict) -> dict:\n    \"\"\"\n    Masks emails and Pakistani phone numbers in the provided text.\n    \"\"\"\n    # Input validation\n    input_text = inputs.get('input_text')\n    if input_text is None or not isinstance(input_text, str) or input_text.strip() == \"\":\n        return {\n            \"masked_text\": \"\",\n            \"detection_summary\": {\n                \"emails_count\": 0,\n                \"phones_count\": 0\n            }\n        }\n\n    # Regex for Emails\n    # Matches standard email formats\n    email_pattern = r'([a-zA-Z0-9_.+-])([a-zA-Z0-9_.+-]*)@([a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+)'\n    \n    # Regex for Pakistani Phone Numbers\n    # Matches: 03xx, +923xx, 00923xx followed by 7 digits\n    # Use (?<!\\d) instead of \\b to allow '+' at the start while preventing matching inside longer digit strings\n    phone_pattern = r'(?<!\\d)((\\+92|0092|0)3\\d{2})(\\d{3})(\\d{4})(?!\\d)'\n\n    emails_count = 0\n    phones_count = 0\n\n    def mask_email(match):\n        nonlocal emails_count\n        emails_count += 1\n        first_char = match.group(1)\n        domain = match.group(3)\n        return f\"{first_char}***@{domain}\"\n\n    def mask_phone(match):\n        nonlocal phones_count\n        phones_count += 1\n        prefix = match.group(1)\n        last_four = match.group(4)\n        return f\"{prefix}****{last_four}\"\n\n    # Process emails first, then phones to avoid overlapping replacements\n    processed_text = re.sub(email_pattern, mask_email, input_text)\n    processed_text = re.sub(phone_pattern, mask_phone, processed_text)\n\n    return {\n        \"masked_text\": processed_text,\n        \"detection_summary\": {\n            \"emails_count\": emails_count,\n            \"phones_count\": phones_count\n        }\n    }",
+      "created_at": 1792773075.543933,
+      "latest_run": {
+        "run_id": "run_38761bb4",
+        "skill_id": "skill_ff5e1863",
+        "version": "1.0.1",
+        "timestamp": 1792773075.5595665,
+        "status": "passed",
+        "passed_count": 4,
+        "failed_count": 0,
+        "total_tests": 4,
+        "pass_rate": 100.0,
+        "test_results": [
+          {
+            "test_id": "b907aebd",
+            "test_name": "Standard PII Detection",
+            "passed": true,
+            "actual_output": {
+              "masked_text": "Contact me at a***@gmail.com or call 0300****4567.",
+              "detection_summary": {
+                "emails_count": 1,
+                "phones_count": 1
+              }
+            },
+            "error_message": null,
+            "execution_time_ms": 3.9637000299990177,
+            "assertion_results": [
+              {
+                "assertion_type": "contains",
+                "expected": "a***@gmail.com",
+                "target_field": "masked_text",
+                "passed": true,
+                "message": "Checked substring 'a***@gmail.com' in text (found: True)",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "0300****4567",
+                "target_field": "masked_text",
+                "passed": true,
+                "message": "Checked substring '0300****4567' in text (found: True)",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 1,
+                "target_field": "detection_summary.emails_count",
+                "passed": true,
+                "message": "Expected 1, got 1",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 1,
+                "target_field": "detection_summary.phones_count",
+                "passed": true,
+                "message": "Expected 1, got 1",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "2681678a",
+            "test_name": "Multiple Pakistani Phone Formats",
+            "passed": true,
+            "actual_output": {
+              "masked_text": "Numbers: +92301****2222, 0092312****4444, 0321****6666",
+              "detection_summary": {
+                "emails_count": 0,
+                "phones_count": 3
+              }
+            },
+            "error_message": null,
+            "execution_time_ms": 3.8064997643232346,
+            "assertion_results": [
+              {
+                "assertion_type": "contains",
+                "expected": "+92301****2222",
+                "target_field": "masked_text",
+                "passed": true,
+                "message": "Checked substring '+92301****2222' in text (found: True)",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "0092312****4444",
+                "target_field": "masked_text",
+                "passed": true,
+                "message": "Checked substring '0092312****4444' in text (found: True)",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "contains",
+                "expected": "0321****6666",
+                "target_field": "masked_text",
+                "passed": true,
+                "message": "Checked substring '0321****6666' in text (found: True)",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 3,
+                "target_field": "detection_summary.phones_count",
+                "passed": true,
+                "message": "Expected 3, got 3",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "c1ce007c",
+            "test_name": "Non-PII and Foreign Numbers",
+            "passed": true,
+            "actual_output": {
+              "masked_text": "My US number is +12025550123 and my ID is 123456789.",
+              "detection_summary": {
+                "emails_count": 0,
+                "phones_count": 0
+              }
+            },
+            "error_message": null,
+            "execution_time_ms": 3.2929000444710255,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "My US number is +12025550123 and my ID is 123456789.",
+                "target_field": "masked_text",
+                "passed": true,
+                "message": "Expected My US number is +12025550123 and my ID is 123456789., got My US number is +12025550123 and my ID is 123456789.",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "detection_summary.emails_count",
+                "passed": true,
+                "message": "Expected 0, got 0",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "detection_summary.phones_count",
+                "passed": true,
+                "message": "Expected 0, got 0",
+                "is_evaluator_error": false
+              }
+            ]
+          },
+          {
+            "test_id": "f5448791",
+            "test_name": "Empty and Null Input",
+            "passed": true,
+            "actual_output": {
+              "masked_text": "",
+              "detection_summary": {
+                "emails_count": 0,
+                "phones_count": 0
+              }
+            },
+            "error_message": null,
+            "execution_time_ms": 3.8247997872531414,
+            "assertion_results": [
+              {
+                "assertion_type": "equals",
+                "expected": "",
+                "target_field": "masked_text",
+                "passed": true,
+                "message": "Expected , got ",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "detection_summary.emails_count",
+                "passed": true,
+                "message": "Expected 0, got 0",
+                "is_evaluator_error": false
+              },
+              {
+                "assertion_type": "equals",
+                "expected": 0,
+                "target_field": "detection_summary.phones_count",
+                "passed": true,
+                "message": "Expected 0, got 0",
+                "is_evaluator_error": false
+              }
+            ]
+          }
+        ],
+        "logs": [
+          "Starting test execution for skill 'skill_ff5e1863' (version 1.0.1) with 4 tests.",
+          "[+] Test 'Standard PII Detection' PASSED in 4.0ms",
+          "[+] Test 'Multiple Pakistani Phone Formats' PASSED in 3.8ms",
+          "[+] Test 'Non-PII and Foreign Numbers' PASSED in 3.3ms",
+          "[+] Test 'Empty and Null Input' PASSED in 3.8ms"
+        ]
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "id": "b907aebd",
+      "name": "Standard PII Detection",
+      "description": "Validates masking of a standard email and a standard Pakistani phone number in a sentence.",
+      "input_data": {
+        "input_text": "Contact me at ali.khan@gmail.com or call 03001234567."
+      },
+      "expected_behavior": "Email should be masked to a***@gmail.com and phone to 0300****4567.",
+      "assertions": [
+        {
+          "assertion_type": "contains",
+          "expected": "a***@gmail.com",
+          "target_field": "masked_text"
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "0300****4567",
+          "target_field": "masked_text"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 1,
+          "target_field": "detection_summary.emails_count"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 1,
+          "target_field": "detection_summary.phones_count"
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "2681678a",
+      "name": "Multiple Pakistani Phone Formats",
+      "description": "Validates that +92, 0092, and 0 prefixes for Pakistani numbers are all handled correctly.",
+      "input_data": {
+        "input_text": "Numbers: +923011112222, 00923123334444, 03215556666"
+      },
+      "expected_behavior": "All three numbers should be masked preserving only the prefix and last 4 digits.",
+      "assertions": [
+        {
+          "assertion_type": "contains",
+          "expected": "+92301****2222",
+          "target_field": "masked_text"
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "0092312****4444",
+          "target_field": "masked_text"
+        },
+        {
+          "assertion_type": "contains",
+          "expected": "0321****6666",
+          "target_field": "masked_text"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 3,
+          "target_field": "detection_summary.phones_count"
+        }
+      ],
+      "is_edge_case": false
+    },
+    {
+      "id": "c1ce007c",
+      "name": "Non-PII and Foreign Numbers",
+      "description": "Ensures that US phone numbers or random digits are not masked.",
+      "input_data": {
+        "input_text": "My US number is +12025550123 and my ID is 123456789."
+      },
+      "expected_behavior": "The text should remain unchanged as no Pakistani phones or emails are present.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": "My US number is +12025550123 and my ID is 123456789.",
+          "target_field": "masked_text"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": "detection_summary.emails_count"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": "detection_summary.phones_count"
+        }
+      ],
+      "is_edge_case": true
+    },
+    {
+      "id": "f5448791",
+      "name": "Empty and Null Input",
+      "description": "Validates the system's robustness against empty strings or null inputs.",
+      "input_data": {
+        "input_text": ""
+      },
+      "expected_behavior": "Should return empty masked_text and zero counts.",
+      "assertions": [
+        {
+          "assertion_type": "equals",
+          "expected": "",
+          "target_field": "masked_text"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": "detection_summary.emails_count"
+        },
+        {
+          "assertion_type": "equals",
+          "expected": 0,
+          "target_field": "detection_summary.phones_count"
+        }
+      ],
+      "is_edge_case": true
+    }
+  ],
+  "runs": [
+    {
+      "run_id": "run_ff375a47",
+      "skill_id": "skill_ff5e1863",
+      "version": "1.0.0",
+      "timestamp": 1792773067.6366138,
+      "status": "failed",
+      "passed_count": 3,
+      "failed_count": 1,
+      "total_tests": 4,
+      "pass_rate": 75.0,
+      "test_results": [
+        {
+          "test_id": "b907aebd",
+          "test_name": "Standard PII Detection",
+          "passed": true,
+          "actual_output": {
+            "masked_text": "Contact me at a***@gmail.com or call 0300****4567.",
+            "detection_summary": {
+              "emails_count": 1,
+              "phones_count": 1
+            }
+          },
+          "error_message": null,
+          "execution_time_ms": 5.00589981675148,
+          "assertion_results": [
+            {
+              "assertion_type": "contains",
+              "expected": "a***@gmail.com",
+              "target_field": "masked_text",
+              "passed": true,
+              "message": "Checked substring 'a***@gmail.com' in text (found: True)",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "0300****4567",
+              "target_field": "masked_text",
+              "passed": true,
+              "message": "Checked substring '0300****4567' in text (found: True)",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 1,
+              "target_field": "detection_summary.emails_count",
+              "passed": true,
+              "message": "Expected 1, got 1",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 1,
+              "target_field": "detection_summary.phones_count",
+              "passed": true,
+              "message": "Expected 1, got 1",
+              "is_evaluator_error": false
+            }
+          ]
+        },
+        {
+          "test_id": "2681678a",
+          "test_name": "Multiple Pakistani Phone Formats",
+          "passed": false,
+          "actual_output": {
+            "masked_text": "Numbers: +923011112222, 0092312****4444, 0321****6666",
+            "detection_summary": {
+              "emails_count": 0,
+              "phones_count": 2
+            }
+          },
+          "error_message": "Assertion failures",
+          "execution_time_ms": 3.2620998099446297,
+          "assertion_results": [
+            {
+              "assertion_type": "contains",
+              "expected": "+92301****2222",
+              "target_field": "masked_text",
+              "passed": false,
+              "message": "Checked substring '+92301****2222' in text (found: False)",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "0092312****4444",
+              "target_field": "masked_text",
+              "passed": true,
+              "message": "Checked substring '0092312****4444' in text (found: True)",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "0321****6666",
+              "target_field": "masked_text",
+              "passed": true,
+              "message": "Checked substring '0321****6666' in text (found: True)",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 3,
+              "target_field": "detection_summary.phones_count",
+              "passed": false,
+              "message": "Expected '3', got '2' (target: detection_summary.phones_count)",
+              "is_evaluator_error": false
+            }
+          ]
+        },
+        {
+          "test_id": "c1ce007c",
+          "test_name": "Non-PII and Foreign Numbers",
+          "passed": true,
+          "actual_output": {
+            "masked_text": "My US number is +12025550123 and my ID is 123456789.",
+            "detection_summary": {
+              "emails_count": 0,
+              "phones_count": 0
+            }
+          },
+          "error_message": null,
+          "execution_time_ms": 3.079699818044901,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "My US number is +12025550123 and my ID is 123456789.",
+              "target_field": "masked_text",
+              "passed": true,
+              "message": "Expected My US number is +12025550123 and my ID is 123456789., got My US number is +12025550123 and my ID is 123456789.",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "detection_summary.emails_count",
+              "passed": true,
+              "message": "Expected 0, got 0",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "detection_summary.phones_count",
+              "passed": true,
+              "message": "Expected 0, got 0",
+              "is_evaluator_error": false
+            }
+          ]
+        },
+        {
+          "test_id": "f5448791",
+          "test_name": "Empty and Null Input",
+          "passed": true,
+          "actual_output": {
+            "masked_text": "",
+            "detection_summary": {
+              "emails_count": 0,
+              "phones_count": 0
+            }
+          },
+          "error_message": null,
+          "execution_time_ms": 2.9748999513685703,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "",
+              "target_field": "masked_text",
+              "passed": true,
+              "message": "Expected , got ",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "detection_summary.emails_count",
+              "passed": true,
+              "message": "Expected 0, got 0",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "detection_summary.phones_count",
+              "passed": true,
+              "message": "Expected 0, got 0",
+              "is_evaluator_error": false
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_ff5e1863' (version 1.0.0) with 4 tests.",
+        "[+] Test 'Standard PII Detection' PASSED in 5.0ms",
+        "[-] Test 'Multiple Pakistani Phone Formats' FAILED assertions: [\"Checked substring '+92301****2222' in text (found: False)\", \"Expected '3', got '2' (target: detection_summary.phones_count)\"]",
+        "[+] Test 'Non-PII and Foreign Numbers' PASSED in 3.1ms",
+        "[+] Test 'Empty and Null Input' PASSED in 3.0ms"
+      ]
+    },
+    {
+      "run_id": "run_38761bb4",
+      "skill_id": "skill_ff5e1863",
+      "version": "1.0.1",
+      "timestamp": 1792773075.5595665,
+      "status": "passed",
+      "passed_count": 4,
+      "failed_count": 0,
+      "total_tests": 4,
+      "pass_rate": 100.0,
+      "test_results": [
+        {
+          "test_id": "b907aebd",
+          "test_name": "Standard PII Detection",
+          "passed": true,
+          "actual_output": {
+            "masked_text": "Contact me at a***@gmail.com or call 0300****4567.",
+            "detection_summary": {
+              "emails_count": 1,
+              "phones_count": 1
+            }
+          },
+          "error_message": null,
+          "execution_time_ms": 3.9637000299990177,
+          "assertion_results": [
+            {
+              "assertion_type": "contains",
+              "expected": "a***@gmail.com",
+              "target_field": "masked_text",
+              "passed": true,
+              "message": "Checked substring 'a***@gmail.com' in text (found: True)",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "0300****4567",
+              "target_field": "masked_text",
+              "passed": true,
+              "message": "Checked substring '0300****4567' in text (found: True)",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 1,
+              "target_field": "detection_summary.emails_count",
+              "passed": true,
+              "message": "Expected 1, got 1",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 1,
+              "target_field": "detection_summary.phones_count",
+              "passed": true,
+              "message": "Expected 1, got 1",
+              "is_evaluator_error": false
+            }
+          ]
+        },
+        {
+          "test_id": "2681678a",
+          "test_name": "Multiple Pakistani Phone Formats",
+          "passed": true,
+          "actual_output": {
+            "masked_text": "Numbers: +92301****2222, 0092312****4444, 0321****6666",
+            "detection_summary": {
+              "emails_count": 0,
+              "phones_count": 3
+            }
+          },
+          "error_message": null,
+          "execution_time_ms": 3.8064997643232346,
+          "assertion_results": [
+            {
+              "assertion_type": "contains",
+              "expected": "+92301****2222",
+              "target_field": "masked_text",
+              "passed": true,
+              "message": "Checked substring '+92301****2222' in text (found: True)",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "0092312****4444",
+              "target_field": "masked_text",
+              "passed": true,
+              "message": "Checked substring '0092312****4444' in text (found: True)",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "contains",
+              "expected": "0321****6666",
+              "target_field": "masked_text",
+              "passed": true,
+              "message": "Checked substring '0321****6666' in text (found: True)",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 3,
+              "target_field": "detection_summary.phones_count",
+              "passed": true,
+              "message": "Expected 3, got 3",
+              "is_evaluator_error": false
+            }
+          ]
+        },
+        {
+          "test_id": "c1ce007c",
+          "test_name": "Non-PII and Foreign Numbers",
+          "passed": true,
+          "actual_output": {
+            "masked_text": "My US number is +12025550123 and my ID is 123456789.",
+            "detection_summary": {
+              "emails_count": 0,
+              "phones_count": 0
+            }
+          },
+          "error_message": null,
+          "execution_time_ms": 3.2929000444710255,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "My US number is +12025550123 and my ID is 123456789.",
+              "target_field": "masked_text",
+              "passed": true,
+              "message": "Expected My US number is +12025550123 and my ID is 123456789., got My US number is +12025550123 and my ID is 123456789.",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "detection_summary.emails_count",
+              "passed": true,
+              "message": "Expected 0, got 0",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "detection_summary.phones_count",
+              "passed": true,
+              "message": "Expected 0, got 0",
+              "is_evaluator_error": false
+            }
+          ]
+        },
+        {
+          "test_id": "f5448791",
+          "test_name": "Empty and Null Input",
+          "passed": true,
+          "actual_output": {
+            "masked_text": "",
+            "detection_summary": {
+              "emails_count": 0,
+              "phones_count": 0
+            }
+          },
+          "error_message": null,
+          "execution_time_ms": 3.8247997872531414,
+          "assertion_results": [
+            {
+              "assertion_type": "equals",
+              "expected": "",
+              "target_field": "masked_text",
+              "passed": true,
+              "message": "Expected , got ",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "detection_summary.emails_count",
+              "passed": true,
+              "message": "Expected 0, got 0",
+              "is_evaluator_error": false
+            },
+            {
+              "assertion_type": "equals",
+              "expected": 0,
+              "target_field": "detection_summary.phones_count",
+              "passed": true,
+              "message": "Expected 0, got 0",
+              "is_evaluator_error": false
+            }
+          ]
+        }
+      ],
+      "logs": [
+        "Starting test execution for skill 'skill_ff5e1863' (version 1.0.1) with 4 tests.",
+        "[+] Test 'Standard PII Detection' PASSED in 4.0ms",
+        "[+] Test 'Multiple Pakistani Phone Formats' PASSED in 3.8ms",
+        "[+] Test 'Non-PII and Foreign Numbers' PASSED in 3.3ms",
+        "[+] Test 'Empty and Null Input' PASSED in 3.8ms"
+      ]
+    }
+  ],
+  "improvements": [
+    {
+      "iteration": 1,
+      "previous_version": "1.0.0",
+      "new_version": "1.0.1",
+      "failure_analysis": "The phone number regex `(\\b(?:\\+92|0092|0)3\\d{2})(\\d{3})(\\d{4}\\b)` failed to match `+923011112222` because the `\\b` (word boundary) anchor does not match the position between a space and a `+` sign (since `+` is a non-word character). Consequently, the first number was ignored, leading to an incorrect count and unmasked text.",
+      "changes_made": "Modified the phone number regex to remove the leading `\\b` and instead use a lookbehind or simply allow the match to start at the beginning of the string or after a non-digit character. Specifically, replaced the leading `\\b` with `(?<!\\d)` to ensure we aren't matching the middle of a longer digit string, while allowing `+` to be the starting character. Also ensured the regex handles the prefix and digit groups correctly to maintain the required masking format.",
+      "before_pass_rate": 75.0,
+      "after_pass_rate": 100.0,
+      "improved": true,
+      "regression_detected": false,
+      "decision": "accepted",
+      "decision_reason": "ACCEPTED: Verified improvement from 75.0% to 100.0% with 0 regressions. Fixed 1 test(s): Multiple Pakistani Phone Formats.",
+      "fixed_tests": [
+        "Multiple Pakistani Phone Formats"
+      ],
+      "regressed_tests": [],
+      "remaining_issues": [],
+      "timestamp": 1792773075.5595665
+    }
+  ],
+  "created_at": 1792773067.6366138,
+  "updated_at": 1792773067.6366138
+}

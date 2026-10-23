@@ -8,9 +8,14 @@ A user describes a capability in natural language. The system creates a reusable
 
 ## 🚀 Quick Start (Demo in 60 Seconds)
 
-### 1. Prerequisites
+### 1. Prerequisites & Installation
 - Python 3.10+
 - Node.js 18+
+
+Install backend dependencies:
+```bash
+pip install -r requirements.txt
+```
 
 ### 2. Configure Your Ollama Cloud API Key
 Copy the example environment configuration:
