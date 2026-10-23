@@ -8,6 +8,9 @@ from backend.models import Skill, SkillVersion, ExecutionRun, AppSettings
 IS_VERCEL = bool(os.environ.get("VERCEL")) or bool(os.environ.get("VERCEL_ENV"))
 BUNDLED_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
+# Mutable container so functions/methods can update the write path at runtime
+_writable_paths = {}
+
 if IS_VERCEL:
     # Serverless runtime: storage in /tmp is writable
     DATA_DIR = Path("/tmp/data")
@@ -86,26 +89,30 @@ class SkillRegistry:
                 except Exception as e:
                     print(f"Error loading skill file {f}: {e}")
 
+    def _get_write_dir(self):
+        """Return the writable skills directory, falling back to /tmp if needed."""
+        if "skills_dir" in _writable_paths:
+            return _writable_paths["skills_dir"]
+        return SKILLS_DIR
+
     def save(self, skill: Skill):
-        # Update in‑memory cache first
+        # Update in-memory cache first
         self._skills[skill.id] = skill
-        # Preferred location (writes to SKILLS_DIR which is /tmp/data when running on Vercel)
-        primary_path = SKILLS_DIR / f"{skill.id}.json"
+        write_dir = self._get_write_dir()
+        primary_path = write_dir / f"{skill.id}.json"
         try:
             primary_path.parent.mkdir(parents=True, exist_ok=True)
             with open(primary_path, "w", encoding="utf-8") as fp:
                 fp.write(skill.model_dump_json(indent=2))
-        except OSError as oe:
-            # Likely a read‑only filesystem (e.g., /var/task). Fallback to /tmp
+        except OSError:
+            # Read-only filesystem (e.g., /var/task on Vercel). Fallback to /tmp.
             fallback_dir = Path("/tmp/data/skills")
             fallback_dir.mkdir(parents=True, exist_ok=True)
             fallback_path = fallback_dir / f"{skill.id}.json"
             try:
                 with open(fallback_path, "w", encoding="utf-8") as fp:
                     fp.write(skill.model_dump_json(indent=2))
-                # Update global SKILLS_DIR to writable location for future ops
-                global SKILLS_DIR
-                SKILLS_DIR = fallback_dir
+                _writable_paths["skills_dir"] = fallback_dir
                 print(f"Info: Fell back to writable path {fallback_path}")
             except Exception as e2:
                 print(f"Error: Could not persist skill {skill.id} to any location: {e2}")
@@ -121,7 +128,8 @@ class SkillRegistry:
     def delete(self, skill_id: str) -> bool:
         if skill_id in self._skills:
             del self._skills[skill_id]
-            file_path = SKILLS_DIR / f"{skill_id}.json"
+            write_dir = self._get_write_dir()
+            file_path = write_dir / f"{skill_id}.json"
             if file_path.exists():
                 try:
                     file_path.unlink()
